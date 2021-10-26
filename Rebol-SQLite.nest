@@ -1,0 +1,105 @@
+;~ Siskin project nest file ~;
+compiler: clang
+version: 3.5.6
+
+define: USE_TRACES
+
+#if Windows? [ define: TO_WINDOWS define: _CRT_SECURE_NO_WARNINGS]
+#if macOS?   [ define: TO_OSX     define: HAS_BOOL]
+#if Linux?   [ define: TO_LINUX ]
+
+target-x86: [
+	arch: x86
+	#if Windows? [ defines: [ TO_WIN32 _WIN32 ] ]
+	#if Linux?   [ defines: [ TO_LINUX_X86    ] ]
+]
+target-x64: [
+	arch: x64
+	defines: [
+		_FILE_OFFSET_BITS=64
+		__LP64__ ; has long (integer) 64 bits
+	]
+	#if Windows? [ defines: [ TO_WIN32_X64 _WIN32 ] ]
+	#if Linux?   [ defines: [ TO_LINUX_X64        ] ]
+	#if macOS?   [ defines: [ TO_OSX_X64          ] flags: ["-arch x86_64"] ]
+]
+
+target-arm64: [
+	arch: arm64
+	;flags: ["-arch arm64"]
+	flags: "-target arm64-apple-darwin"
+	define: _FILE_OFFSET_BITS=64
+	define: __LP64__ ; has long (integer) 64 bits
+	define: __arm64__
+	define: TO_OSX_X64
+]
+
+r3-extension: [
+	clean: %src/sqlite-rebol-extension.c
+	files: only [
+		%sqlite-3.36.0/sqlite3.c
+		%src/sqlite-rebol-extension.c
+		%src/sqlite-command.c
+		%src/sqlite-command-info.c
+		%src/sqlite-command-open.c
+		%src/sqlite-command-close.c
+		%src/sqlite-command-exec.c
+		%src/sqlite-command-prepare.c
+		%src/sqlite-command-reset.c
+		%src/sqlite-command-step.c
+		%src/sqlite-command-trace.c
+	]
+	include: [
+		%src/
+		%sqlite-3.36.0/
+		%rebol/src/include/
+	]
+	defines: [ENDIAN_LITTLE]
+	cflags:  [-fpermissive]
+	flags:   [-O2 shared]
+
+	#if Posix? [
+		cflags: [-fPIC -pthread ]
+		;libraries: [%pthread]
+	]
+	do %src/sqlite-rebol-extension.r3 
+]
+
+eggs: only [
+	#if Windows? [
+		"Rebol sqlite extension: win32_x86" [
+			name: %sqlite-extension-win32-x86
+			:r3-extension
+			:target-x86
+		]
+		"Rebol sqlite extension: win32_x64" [
+			name: %sqlite-extension-win32-x64
+			:r3-extension
+			:target-x64
+		]
+	]
+	#if macOS? [
+		"Rebol sqlite extension: osx_x64" [
+			name: %sqlite-extension-osx-x64
+			:r3-extension
+			:target-x64
+		]
+		"Rebol sqlite extension: osx_arm64" [
+			name: %sqlite-extension-osx-arm64
+			:r3-extension
+			:target-arm64
+		]
+	]
+	#if Linux? [
+		"Rebol sqlite extension: linux_x86" [
+			name: %sqlite-extension-linux-x86
+			:r3-extension
+			:target-x86
+		]
+		"Rebol sqlite extension: linux_x64" [
+			name: %sqlite-extension-linux-x64
+			:r3-extension
+			:target-x64
+		]
+	]
+]

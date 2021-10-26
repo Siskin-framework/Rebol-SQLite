@@ -5,4 +5,4 @@
 !/rebol
 !/src
 !/test
-!/Rebol-Test-Extension.nest
+!/*.nest
