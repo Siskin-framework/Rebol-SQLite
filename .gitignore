@@ -6,3 +6,4 @@
 !/src
 !/test
 !/*.nest
+!/sqlite-3.36.0
