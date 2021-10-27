@@ -66,7 +66,7 @@ extern RXIARG arg[ARG_BUFFER_SIZE];
 	n = RXA_SERIES(frm, i);        \
 	n = RL_ENCODE_UTF8_STRING(SERIES_DATA(n), SERIES_TAIL(n), SERIES_WIDE(n) > 1, FALSE);
 
-#define RESOLVE_SQLITE_DB(n, i)                     \
+#define RESOLVE_SQLITE_CTX(n, i)                     \
 			hob = RXA_HANDLE(frm, i);               \
 			n = (SQLITE_CONTEXT*)hob->data;         \
 			if(!n || hob->sym != Handle_SQLiteDB )  \
