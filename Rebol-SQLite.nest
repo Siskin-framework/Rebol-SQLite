@@ -4,7 +4,7 @@ version: 3.5.6
 
 define: USE_TRACES
 
-#if Windows? [ define: TO_WINDOWS define: _CRT_SECURE_NO_WARNINGS]
+#if Windows? [ define: _CRT_SECURE_NO_WARNINGS upx: on]
 #if macOS?   [ define: TO_OSX     define: HAS_BOOL]
 #if Linux?   [ define: TO_LINUX ]
 
@@ -68,36 +68,36 @@ r3-extension: [
 eggs: only [
 	#if Windows? [
 		"Rebol sqlite extension: win32_x86" [
-			name: %sqlite-extension-win32-x86
+			name: %sqlite-windows-x86
 			:r3-extension
 			:target-x86
 		]
 		"Rebol sqlite extension: win32_x64" [
-			name: %sqlite-extension-win32-x64
+			name: %sqlite-windows-x64
 			:r3-extension
 			:target-x64
 		]
 	]
 	#if macOS? [
 		"Rebol sqlite extension: osx_x64" [
-			name: %sqlite-extension-osx-x64
+			name: %sqlite-macos-x64
 			:r3-extension
 			:target-x64
 		]
 		"Rebol sqlite extension: osx_arm64" [
-			name: %sqlite-extension-osx-arm64
+			name: %sqlite-macos-arm64
 			:r3-extension
 			:target-arm64
 		]
 	]
 	#if Linux? [
 		"Rebol sqlite extension: linux_x86" [
-			name: %sqlite-extension-linux-x86
+			name: %sqlite-linux-x86
 			:r3-extension
 			:target-x86
 		]
 		"Rebol sqlite extension: linux_x64" [
-			name: %sqlite-extension-linux-x64
+			name: %sqlite-linux-x64
 			:r3-extension
 			:target-x64
 		]
