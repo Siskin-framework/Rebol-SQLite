@@ -72,7 +72,7 @@ jobs:
 
       - name: Prepare 64bit Rebol SQLite extension
         run:  |
-          mv .\build\sqlite-linux-x64.so sqlite-linux-x64.rebx
+          mv ./build/sqlite-linux-x64.so sqlite-linux-x64.rebx
           gzip -9 ./sqlite-linux-x64.rebx
 
       - uses: actions/upload-artifact@v2
@@ -94,7 +94,7 @@ jobs:
 
       - name: Prepare 64bit Rebol SQLite extension
         run:  |
-          mv .\build\sqlite-macos-x64.dylib sqlite-macos-x64.rebx
+          mv ./build/sqlite-macos-x64.dylib sqlite-macos-x64.rebx
           gzip -9 ./sqlite-macos-x64.rebx
 
       - uses: actions/upload-artifact@v2
