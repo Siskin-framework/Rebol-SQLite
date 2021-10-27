@@ -34,8 +34,8 @@ jobs:
         product: bulk
         version: 3.6.0
 
-    - name: Test extension
-      run:  ./rebol3 test/test.r3
+#    - name: Test extension
+#      run:  ./rebol3 test/test.r3
 
     ###############################################################################
     # Collecting build artifacts...
@@ -59,16 +59,16 @@ jobs:
       - name: Install Siskin Builder
         uses: oldes/install-siskin@v0.4.1
 
-      - name: Build 32bit Rebol SQLite extension
-        run: ./siskin Rebol-SQLite.nest [%sqlite-linux-x86]
+#      - name: Build 32bit Rebol SQLite extension
+#        run: ./siskin Rebol-SQLite.nest [%sqlite-linux-x86]
 
       - name: Build 64bit Rebol SQLite extension
         run: ./siskin Rebol-SQLite.nest [%sqlite-linux-x64]
 
-      - name: Prepare 32bit Rebol SQLite extension
-        run:  |
-          mv .\build\sqlite-linux-x86.so sqlite-linux-x86.rebx
-          gzip -9 ./sqlite-linux-x86.rebx
+#      - name: Prepare 32bit Rebol SQLite extension
+#        run:  |
+#          mv .\build\sqlite-linux-x86.so sqlite-linux-x86.rebx
+#          gzip -9 ./sqlite-linux-x86.rebx
 
       - name: Prepare 64bit Rebol SQLite extension
         run:  |
@@ -94,7 +94,7 @@ jobs:
 
       - name: Prepare 64bit Rebol SQLite extension
         run:  |
-          mv .\build\sqlite-macos-x64.so sqlite-macos-x64.rebx
+          mv .\build\sqlite-macos-x64.dylib sqlite-macos-x64.rebx
           gzip -9 ./sqlite-macos-x64.rebx
 
       - uses: actions/upload-artifact@v2
