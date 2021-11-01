@@ -44,10 +44,13 @@ r3-extension: [
 		%src/sqlite-command-open.c
 		%src/sqlite-command-close.c
 		%src/sqlite-command-exec.c
+		%src/sqlite-command-finalize.c
 		%src/sqlite-command-prepare.c
 		%src/sqlite-command-reset.c
 		%src/sqlite-command-step.c
 		%src/sqlite-command-trace.c
+		%src/sqlite-command-initialize.c
+		%src/sqlite-command-shutdown.c
 	]
 	include: [
 		%src/

@@ -16,11 +16,14 @@ enum sqlite_commands {
 	CMD_SQLITE_INFO,
 	CMD_SQLITE_OPEN,
 	CMD_SQLITE_EXEC,
+	CMD_SQLITE_FINALIZE,
 	CMD_SQLITE_TRACE,
 	CMD_SQLITE_PREPARE,
 	CMD_SQLITE_RESET,
 	CMD_SQLITE_STEP,
 	CMD_SQLITE_CLOSE,
+	CMD_SQLITE_INITIALIZE,
+	CMD_SQLITE_SHUTDOWN,
 };
 enum words_sqlite_cmd {W_SQLITE_CMD_0,
 };
@@ -31,11 +34,14 @@ int cmd_sqlite_init_words(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_info(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_open(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_exec(RXIFRM* frm, void* reb_ctx);
+int cmd_sqlite_finalize(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_trace(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_reset(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_close(RXIFRM* frm, void* reb_ctx);
+int cmd_sqlite_initialize(RXIFRM* frm, void* reb_ctx);
+int cmd_sqlite_shutdown(RXIFRM* frm, void* reb_ctx);
 
 #define EXT_SQLITE_INIT_CODE \
 	"REBOL [Title: {Rebol SQLite Extension} Type: module Exports: []]\n"\
@@ -43,10 +49,13 @@ int cmd_sqlite_close(RXIFRM* frm, void* reb_ctx);
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Open a new database connection\" file [file!]]\n"\
 	"exec: command [\"Run zero or more semicolon-separate SQL statements\" db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
+	"finalize: command [\"Delete prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
 	"trace: command [\"Trace debug output\" db [handle!] \"sqlite-db\" mask [integer!]]\n"\
 	"prepare: command [\"Prepare SQL statement\" db [handle!] \"sqlite-db\" sql [string!] \"statement\"]\n"\
 	"reset: command [\"Reset prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
 	"step: command [\"Execute prepared statement\" stmt [handle!] \"sqlite-stmt\" /rows {Multiple times if there is enough rows in the result} count [integer!] /with parameters [block!]]\n"\
 	"close: command [\"Close database connection\" db [handle!] \"sqlite-db\"]\n"\
+	"initialize: command [\"Initializes the SQLite library\"]\n"\
+	"shutdown: command [\"Deallocate any resources that were allocated\"]\n"\
 	"init-words words: [] []\n"\
 	"protect/hide 'init-words\n"\

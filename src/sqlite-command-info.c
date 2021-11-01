@@ -65,12 +65,14 @@ int cmd_sqlite_info(RXIFRM* frm, void* reb_ctx) {
 			SERIES_REST(str),
 			"ExtVersion:  %u.%u.%u\n"
 			"RebVersion:  %u.%u.%u\n"
-			"SQLite-version:  %s\n"
-			"SQLite-memory:   %llu\n", // the number of bytes of memory currently outstanding (malloced but not freed)
+			"SQLite-version: %s\n"
+			"SQLite-memory:  %llu\n" // the number of bytes of memory currently outstanding (malloced but not freed)
+			"SQLite-mem-top: %llu\n",
 			MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD,
 			rebol_version[1], rebol_version[2], rebol_version[3],
 			sqlite3_libversion(),
-			sqlite3_memory_used()
+			sqlite3_memory_used(),
+			sqlite3_memory_highwater(0)
 		);
 	}
 	if (tail < 0) return RXR_NONE;

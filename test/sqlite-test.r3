@@ -7,12 +7,13 @@ unless value? 'sqlite [
 	if 'Macintosh = sys: system/platform [sys: 'macos]
 	arch: system/build/target
 	target: lowercase join "" [sys #"-" arch]
-	replace target "win32_" ""
+	replace target "-win32" ""
 ;append target "-xcode"
 	;if 'xcode = system/build/compiler [append target "-xcode"]
 	;@@-----------------------------!!!
 	print "Trying to import SQLite extension..."
-	sqlite: import probe to-real-file rejoin [%../sqlite- target %.rebx]
+	ls %..
+	sqlite: import probe to-real-file probe rejoin [%../sqlite- target %.rebx]
 ]
 
 ? sqlite
@@ -46,24 +47,40 @@ COMMIT;}
 	? stmt
 	print info/of stmt
 	probe step stmt
-	reset stmt
+	finalize stmt
+	print info/of stmt
+
+	print "^/Random bin generator..."
 
 	sb: prepare db {select randomblob(16)}
 	loop 4 [
 		probe step sb
 		reset sb
 	]
+	finalize sb
+
+	print "^/Using prepared statements and input values..."
 
 	stmt: prepare db "SELECT * FROM Cars WHERE Price > ? ORDER BY name"
 	probe step/with/rows stmt [20000] 100
 	probe step/with/rows stmt [40000.0] 100
-	reset stmt
+	finalize stmt
 
 	stmt: prepare db "SELECT * FROM Cars WHERE Name LIKE :pattern ORDER BY name"
 	probe step/with/rows stmt ["H%"] 100
-	probe step/with/rows stmt ["A_di"] 100
-	reset stmt
+	; testing an input where index is not at its head
+	name: next "xA_di"
+	probe step/with/rows stmt reduce [name] 100 
+	finalize stmt
+	
+	print "Shutting down.."
+	print info
+	close db
+	probe shutdown
+	probe shutdown ; no-op
+	probe initialize
+	print info
 	print "SQLite tests done."
 ]
-quit
+;quit
 

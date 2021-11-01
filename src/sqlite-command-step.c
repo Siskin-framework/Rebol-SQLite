@@ -29,7 +29,7 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 		ser = RXA_SERIES(frm, 5);
 		for(col = 0; col < SERIES_TAIL(ser); col++) {
 			type = RL_GET_VALUE(ser, col, &arg);
-			printf("arg type: %i\n", type);
+			//printf("arg type: %i\n", type);
 			rc = -1;
 			switch(type) {
 				case RXT_INTEGER:
@@ -39,8 +39,7 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					rc = sqlite3_bind_double(stmt, col+1, arg.dec64);
 					break;
 				case RXT_STRING:
-					ser = arg.series;
-					rc = sqlite3_bind_text(stmt, col+1, SERIES_SKIP(ser, arg.index), -1, SQLITE_TRANSIENT);
+					rc = sqlite3_bind_text(stmt, col+1, SERIES_SKIP((REBSER*)arg.series, arg.index), -1, SQLITE_TRANSIENT);
 					break;
 				case RXT_NONE:
 					rc = sqlite3_bind_null(stmt, col+1);
@@ -49,7 +48,7 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					rc = sqlite3_bind_int(stmt, col+1, arg.int32a);
 					break;
 			}
-			debug_print("bind result: %i\n", rc);
+			//debug_print("bind result: %i\n", rc);
 		}
 	}
 

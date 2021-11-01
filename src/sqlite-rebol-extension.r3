@@ -23,6 +23,10 @@ commands: [
 		db   [handle!] "sqlite-db"
 		sql  [string!] "statements"
 	]
+	finalize: [
+		"Delete prepared statement"
+		stmt [handle!] "sqlite-stmt"
+	]
 	trace: [
 		{Trace debug output}
 		db   [handle!] "sqlite-db"
@@ -48,6 +52,13 @@ commands: [
 	close: [
 		{Close database connection}
 		db   [handle!] "sqlite-db"
+	]
+
+	initialize: [
+		{Initializes the SQLite library}
+	]
+	shutdown: [
+		{Deallocate any resources that were allocated}
 	]
 
 	;--------------------------

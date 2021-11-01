@@ -60,11 +60,15 @@ RXIEXT int RX_Call(int cmd, RXIFRM *frm, void *ctx) {
 	case CMD_SQLITE_INFO:    return cmd_sqlite_info(frm, ctx);
 	case CMD_SQLITE_OPEN:    return cmd_sqlite_open(frm, ctx);
 	case CMD_SQLITE_EXEC:    return cmd_sqlite_exec(frm, ctx);
+	case CMD_SQLITE_FINALIZE:return cmd_sqlite_finalize(frm, ctx);
 	case CMD_SQLITE_CLOSE:   return cmd_sqlite_close(frm, ctx);
 	case CMD_SQLITE_PREPARE: return cmd_sqlite_prepare(frm, ctx);
 	case CMD_SQLITE_RESET:   return cmd_sqlite_reset(frm, ctx);
 	case CMD_SQLITE_STEP:    return cmd_sqlite_step(frm, ctx);
 	case CMD_SQLITE_TRACE:   return cmd_sqlite_trace(frm, ctx);
+
+	case CMD_SQLITE_INITIALIZE: return cmd_sqlite_initialize(frm, ctx);
+	case CMD_SQLITE_SHUTDOWN: return cmd_sqlite_shutdown(frm, ctx);
 
 	case CMD_SQLITE_INIT_WORDS:
 		words_sqlite_cmd = RL_MAP_WORDS(RXA_SERIES(frm,1));
