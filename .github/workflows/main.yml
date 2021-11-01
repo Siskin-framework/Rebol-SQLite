@@ -30,12 +30,9 @@ jobs:
 
     - name: Install Rebol for extension test
       uses: oldes/install-rebol@v3.6.0
-      with:
-        product: bulk
-        version: 3.6.0
 
-#    - name: Test extension
-#      run:  ./rebol3 test/test.r3
+    - name: Test extension
+      run:  ./rebol3 test/sqlite-test.r3
 
     ###############################################################################
     # Collecting build artifacts...
@@ -75,6 +72,12 @@ jobs:
           mv ./build/sqlite-linux-x64.so sqlite-linux-x64.rebx
           gzip -9 ./sqlite-linux-x64.rebx
 
+      - name: Install Rebol for extension test
+        uses: oldes/install-rebol@v3.6.0
+
+      - name: Test extension
+        run:  ./rebol3 test/sqlite-test.r3
+
       - uses: actions/upload-artifact@v2
         with:
           name: Rebol-SQLite-CI-${{github.run_id}}
@@ -96,6 +99,12 @@ jobs:
         run:  |
           mv ./build/sqlite-macos-x64.dylib sqlite-macos-x64.rebx
           gzip -9 ./sqlite-macos-x64.rebx
+
+      - name: Install Rebol for extension test
+        uses: oldes/install-rebol@v3.6.0
+
+      - name: Test extension
+        run:  ./rebol3 test/sqlite-test.r3
 
       - uses: actions/upload-artifact@v2
         with:
