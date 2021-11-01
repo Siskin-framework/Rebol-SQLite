@@ -42,6 +42,12 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					ser = arg.series;
 					rc = sqlite3_bind_text(stmt, col+1, SERIES_SKIP(ser, arg.index), -1, SQLITE_TRANSIENT);
 					break;
+				case RXT_NONE:
+					rc = sqlite3_bind_null(stmt, col+1);
+					break;
+				case RXT_LOGIC:
+					rc = sqlite3_bind_int(stmt, col+1, arg.int32a);
+					break;
 			}
 			debug_print("bind result: %i\n", rc);
 		}
