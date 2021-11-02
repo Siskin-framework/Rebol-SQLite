@@ -20,7 +20,7 @@ unless value? 'sqlite [
 print sqlite/info
 with sqlite [
 	db: open %test.db
-	? db
+	;? db
 	print info/of db
 	trace db 3 ;= SQLITE_TRACE_STMT or SQLITE_TRACE_PROFILE
 
@@ -44,7 +44,7 @@ COMMIT;}
 	exec db "SELECT hex(randomblob(16));"
 
 	stmt: prepare db "SELECT * FROM Cars ORDER BY name"
-	? stmt
+	;? stmt
 	print info/of stmt
 	probe step stmt
 	finalize stmt
