@@ -8,12 +8,12 @@ unless value? 'sqlite [
 	arch: system/build/target
 	target: lowercase join "" [sys #"-" arch]
 	replace target "-win32" ""
+	replace target "-osx" ""
 ;append target "-xcode"
 	;if 'xcode = system/build/compiler [append target "-xcode"]
 	;@@-----------------------------!!!
 	print "Trying to import SQLite extension..."
-	ls %..
-	sqlite: import probe to-real-file probe rejoin [%../sqlite- target %.rebx]
+	sqlite: import probe to-real-file rejoin [%../sqlite- target %.rebx]
 ]
 
 ? sqlite
