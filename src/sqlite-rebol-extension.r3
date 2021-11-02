@@ -15,34 +15,34 @@ commands: [
 		/of handle [handle!] {SQLite Extension handle}
 	]
 	open: [
-		{Open a new database connection}
+		{Opens a new database connection}
 		file [file!]
 	]
 	exec: [
-		{Run zero or more semicolon-separate SQL statements}
+		{Runs zero or more semicolon-separate SQL statements}
 		db   [handle!] "sqlite-db"
 		sql  [string!] "statements"
 	]
 	finalize: [
-		"Delete prepared statement"
+		"Deletes prepared statement"
 		stmt [handle!] "sqlite-stmt"
 	]
 	trace: [
-		{Trace debug output}
+		{Traces debug output}
 		db   [handle!] "sqlite-db"
 		mask [integer!]
 	]
 	prepare: [
-		"Prepare SQL statement"
+		"Prepares SQL statement"
 		db   [handle!] "sqlite-db"
 		sql  [string!] "statement"
 	]
 	reset: [
-		"Reset prepared statement"
+		"Resets prepared statement"
 		stmt [handle!] "sqlite-stmt"
 	]
 	step: [
-		"Execute prepared statement"
+		"Executes prepared statement"
 		stmt [handle!] "sqlite-stmt"
 		/rows "Multiple times if there is enough rows in the result"
 		 count [integer!]
@@ -50,7 +50,7 @@ commands: [
 		 parameters [block!]
 	]
 	close: [
-		{Close database connection}
+		{Closes a database connection}
 		db   [handle!] "sqlite-db"
 	]
 
