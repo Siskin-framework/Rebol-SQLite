@@ -7,3 +7,4 @@
 !/test
 !/*.nest
 !/sqlite-3.36.0
+!README.md
