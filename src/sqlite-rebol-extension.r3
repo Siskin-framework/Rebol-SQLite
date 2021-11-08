@@ -66,10 +66,14 @@ commands: [
 
 
 header: rejoin[
-	{REBOL [Title: "Rebol SQLite Extension" }
-	{Name: sqlite Type: module Exports: [] }
-	{Date: } now { Version: 3.36.0.1}
-	{ ]}
+	{REBOL [Title: "Rebol SQLite Extension"}
+	{ Name: sqlite Type: module Exports: []}
+	{ Version: 3.36.0.1}
+	{ Author: Oldes}
+	{ Date: } now
+	{ License: Apache-2.0}
+	{ Url: https://github.com/Siskin-framework/Rebol-SQLite}
+	#"]"
 ]
 enum-commands:  {enum sqlite_commands ^{}
 enum-cmd-words: {enum words_sqlite_cmd ^{W_SQLITE_CMD_0,}
