@@ -65,7 +65,12 @@ commands: [
 ]
 
 
-header: {REBOL [Title: {Rebol SQLite Extension} Type: module Exports: []]}
+header: rejoin[
+	{REBOL [Title: "Rebol SQLite Extension" }
+	{Name: sqlite Type: module Exports: [] }
+	{Date: } now { Version: 3.36.0.1}
+	{ ]}
+]
 enum-commands:  {enum sqlite_commands ^{}
 enum-cmd-words: {enum words_sqlite_cmd ^{W_SQLITE_CMD_0,}
 enum-arg-words: {enum words_sqlite_arg ^{W_SQLITE_ARG_0,}

@@ -44,17 +44,17 @@ int cmd_sqlite_initialize(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_shutdown(RXIFRM* frm, void* reb_ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: {Rebol SQLite Extension} Type: module Exports: []]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Date: 8-Nov-2021/12:13:50+1:00 Version: 3.36.0 ]\n"\
 	"init-words: command [cmd-words [block!] arg-words [block!]]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
-	"open: command [\"Open a new database connection\" file [file!]]\n"\
-	"exec: command [\"Run zero or more semicolon-separate SQL statements\" db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
-	"finalize: command [\"Delete prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
-	"trace: command [\"Trace debug output\" db [handle!] \"sqlite-db\" mask [integer!]]\n"\
-	"prepare: command [\"Prepare SQL statement\" db [handle!] \"sqlite-db\" sql [string!] \"statement\"]\n"\
-	"reset: command [\"Reset prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
-	"step: command [\"Execute prepared statement\" stmt [handle!] \"sqlite-stmt\" /rows {Multiple times if there is enough rows in the result} count [integer!] /with parameters [block!]]\n"\
-	"close: command [\"Close database connection\" db [handle!] \"sqlite-db\"]\n"\
+	"open: command [\"Opens a new database connection\" file [file!]]\n"\
+	"exec: command [{Runs zero or more semicolon-separate SQL statements} db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
+	"finalize: command [\"Deletes prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
+	"trace: command [\"Traces debug output\" db [handle!] \"sqlite-db\" mask [integer!]]\n"\
+	"prepare: command [\"Prepares SQL statement\" db [handle!] \"sqlite-db\" sql [string!] \"statement\"]\n"\
+	"reset: command [\"Resets prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
+	"step: command [\"Executes prepared statement\" stmt [handle!] \"sqlite-stmt\" /rows {Multiple times if there is enough rows in the result} count [integer!] /with parameters [block!]]\n"\
+	"close: command [\"Closes a database connection\" db [handle!] \"sqlite-db\"]\n"\
 	"initialize: command [\"Initializes the SQLite library\"]\n"\
 	"shutdown: command [\"Deallocate any resources that were allocated\"]\n"\
 	"init-words words: [] []\n"\
