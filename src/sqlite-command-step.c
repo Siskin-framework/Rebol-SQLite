@@ -101,7 +101,7 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					}
 					RL_SET_VALUE(blk, (row * columns) + col, arg, type);
 				}
-				SERIES_TAIL(blk) = (row * columns) + col + 1;
+				SERIES_TAIL(blk) = (row * columns) + col;
 				break;
 			case SQLITE_DONE:
 				trace("step done");

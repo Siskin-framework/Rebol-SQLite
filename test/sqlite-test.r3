@@ -17,6 +17,9 @@ unless value? 'sqlite [
 ]
 
 ? sqlite
+
+recycle/torture ; make sure that recycle issues are catched
+
 print sqlite/info
 with sqlite [
 	db: open %test.db
