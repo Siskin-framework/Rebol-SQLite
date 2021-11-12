@@ -68,7 +68,7 @@ commands: [
 header: rejoin[
 	{REBOL [Title: "Rebol SQLite Extension"}
 	{ Name: sqlite Type: module Exports: []}
-	{ Version: 3.36.0.1}
+	{ Version: 3.36.0.2}
 	{ Author: Oldes}
 	{ Date: } now
 	{ License: Apache-2.0}
