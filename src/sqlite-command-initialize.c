@@ -7,6 +7,6 @@
 
 int cmd_sqlite_initialize(RXIFRM* frm, void* reb_ctx) {
 	int rc = sqlite3_initialize();
-	printf("initialize result: %i\n", rc);
+	//debug_print("initialize result: %i\n", rc);
 	return (SQLITE_OK == rc ? RXR_TRUE : RXR_FALSE);
 }
