@@ -3,14 +3,10 @@ Rebol [
 ]
 
 unless value? 'sqlite [
-	;@@ This really should be easier!!!
+	;@@ This should be easier!
 	if 'Macintosh = sys: system/platform [sys: 'macos]
-	arch: system/build/target
+	arch: system/build/arch
 	target: lowercase join "" [sys #"-" arch]
-	replace target "-win32" ""
-	replace target "-osx" ""
-;append target "-xcode"
-	;if 'xcode = system/build/compiler [append target "-xcode"]
 	;@@-----------------------------!!!
 	print "Trying to import SQLite extension..."
 	sqlite: import probe to-real-file rejoin [%../sqlite- target %.rebx]
@@ -29,7 +25,11 @@ with sqlite [
 
 	exec db {
 BEGIN TRANSACTION;
+/* delete any tables used in the test */
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS Cars;
+/* ---------------------------------- */
 CREATE TABLE Cars(Id INTEGER PRIMARY KEY, Name TEXT, Price INTEGER);
 INSERT INTO "Cars" VALUES(1,'Audi',52642);
 INSERT INTO "Cars" VALUES(2,'Mercedes',57127);
@@ -53,7 +53,7 @@ COMMIT;}
 	finalize stmt
 	print info/of stmt
 
-	print "^/Random bin generator..."
+	print as-green "^/Random bin generator..."
 
 	sb: prepare db {select randomblob(16)}
 	loop 4 [
@@ -62,7 +62,7 @@ COMMIT;}
 	]
 	finalize sb
 
-	print "^/Using prepared statements and input values..."
+	print as-green "^/Using prepared statements and input values..."
 
 	stmt: prepare db "SELECT * FROM Cars WHERE Price > ? ORDER BY name"
 	probe step/with/rows stmt [20000] 100
@@ -75,8 +75,18 @@ COMMIT;}
 	name: next "xA_di"
 	probe step/with/rows stmt reduce [name] 100 
 	finalize stmt
+
+	print as-green "^/Testing STRICT keyword..."
+	exec db {CREATE TABLE t1(a ANY) STRICT;}
+	exec db {INSERT INTO t1 VALUES('000123');}
+	exec db {SELECT typeof(a), quote(a) FROM t1;} ;-- result: text '000123'
+
+	exec db {CREATE TABLE t2(a ANY);}
+	exec db {INSERT INTO t2 VALUES('000123');}
+	exec db {SELECT typeof(a), quote(a) FROM t2;} ;-- result: integer 123
+
 	
-	print "Shutting down.."
+	print as-green "^/Shutting down.."
 	print info
 	close db
 	probe shutdown
