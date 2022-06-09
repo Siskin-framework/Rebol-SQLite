@@ -37,7 +37,7 @@ target-arm64: [
 r3-extension: [
 	clean: %src/sqlite-rebol-extension.c
 	files: only [
-		%sqlite-3.36.0/sqlite3.c
+		%sqlite/sqlite3.c
 		%src/sqlite-rebol-extension.c
 		%src/sqlite-command.c
 		%src/sqlite-command-info.c
@@ -54,7 +54,7 @@ r3-extension: [
 	]
 	include: [
 		%src/
-		%sqlite-3.36.0/
+		%sqlite/
 		%rebol/src/include/
 	]
 	defines: [ENDIAN_LITTLE]

@@ -6,5 +6,5 @@
 !/src
 !/test
 !/*.nest
-!/sqlite-3.36.0
+!/sqlite
 !README.md
