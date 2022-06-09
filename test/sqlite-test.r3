@@ -3,11 +3,7 @@ Rebol [
 ]
 
 unless value? 'sqlite [
-	;@@ This should be easier!
-	if 'Macintosh = sys: system/platform [sys: 'macos]
-	arch: system/build/arch
-	target: lowercase join "" [sys #"-" arch]
-	;@@-----------------------------!!!
+	target: rejoin [system/build/os #"-" system/build/arch]
 	print "Trying to import SQLite extension..."
 	sqlite: import probe to-real-file rejoin [%../sqlite- target %.rebx]
 ]
