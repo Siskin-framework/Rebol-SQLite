@@ -29,7 +29,7 @@ jobs:
       run:  COPY .\msvc\Release-x64\sqlite-windows-x64.dll sqlite-windows-x64.rebx
 
     - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.6.0
+      uses: oldes/install-rebol@v3.8.0
 
     - name: Test extension
       run:  ./rebol3 test/sqlite-test.r3
@@ -71,7 +71,7 @@ jobs:
         run:  mv ./build/sqlite-linux-x64.so sqlite-linux-x64.rebx
 
       - name: Install Rebol for extension test
-        uses: oldes/install-rebol@v3.6.0
+        uses: oldes/install-rebol@v3.8.0
 
       - name: Test extension
         run:  ./rebol3 test/sqlite-test.r3
@@ -100,7 +100,7 @@ jobs:
         run:  mv ./build/sqlite-macos-x64.dylib sqlite-macos-x64.rebx
 
       - name: Install Rebol for extension test
-        uses: oldes/install-rebol@v3.6.0
+        uses: oldes/install-rebol@v3.8.0
 
       - name: Test extension
         run:  ./rebol3 test/sqlite-test.r3
