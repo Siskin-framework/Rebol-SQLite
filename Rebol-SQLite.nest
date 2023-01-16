@@ -4,7 +4,7 @@ version: 3.40.1
 
 ;define: USE_TRACES
 
-#if Windows? [ define: _CRT_SECURE_NO_WARNINGS upx: on]
+#if Windows? [ define: TO_WINDOWS define: _CRT_SECURE_NO_WARNINGS upx: on]
 #if macOS?   [ define: TO_OSX     define: HAS_BOOL]
 #if Linux?   [ define: TO_LINUX ]
 
