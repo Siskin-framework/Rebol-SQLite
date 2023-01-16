@@ -13,7 +13,7 @@ int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx) {
 	SQLITE_STMT *ctxStmt;
 	sqlite3 *db = NULL;
 	char *zErrMsg = 0;
-	char *zTail = 0;
+	const char *zTail = 0;
 	int rc;
 
 	RESOLVE_SQLITE_CTX(ctx, 1);
