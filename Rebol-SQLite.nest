@@ -1,6 +1,6 @@
 ;~ Siskin project nest file ~;
 compiler: clang
-version: 3.38.5.0
+version: 3.38.5
 
 ;define: USE_TRACES
 
