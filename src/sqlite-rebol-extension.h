@@ -44,7 +44,7 @@ int cmd_sqlite_initialize(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_shutdown(RXIFRM* frm, void* reb_ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.38.5.0 Author: Oldes Date: 9-Jun-2022/12:21:49+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.40.1.0 Author: Oldes Date: 16-Jan-2023/15:28:16+1:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"init-words: command [cmd-words [block!] arg-words [block!]]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\
