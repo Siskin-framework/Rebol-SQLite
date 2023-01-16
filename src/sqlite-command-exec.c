@@ -8,9 +8,9 @@
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	int i;
 	for(i=0; i<argc; i++){
-		RL_PRINT("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+		RL_PRINT(b_cast("%s = %s\n"), azColName[i], argv[i] ? argv[i] : "NULL");
 	}
-	RL_PRINT("\n",0);
+	RL_PRINT(b_cast("\n"),0);
 	return 0;
 }
 

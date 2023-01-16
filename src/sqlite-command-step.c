@@ -39,7 +39,7 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					rc = sqlite3_bind_double(stmt, col+1, arg.dec64);
 					break;
 				case RXT_STRING:
-					rc = sqlite3_bind_text(stmt, col+1, SERIES_SKIP((REBSER*)arg.series, arg.index), -1, SQLITE_TRANSIENT);
+					rc = sqlite3_bind_text(stmt, col+1, s_cast(SERIES_SKIP((REBSER*)arg.series, arg.index)), -1, SQLITE_TRANSIENT);
 					break;
 				case RXT_NONE:
 					rc = sqlite3_bind_null(stmt, col+1);
