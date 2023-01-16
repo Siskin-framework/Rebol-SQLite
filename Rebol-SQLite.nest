@@ -55,7 +55,6 @@ r3-extension: [
 	include: [
 		%src/
 		%sqlite/
-		%rebol/src/include/
 	]
 	defines: [ENDIAN_LITTLE]
 	cflags:  [-fpermissive]

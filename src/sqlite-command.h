@@ -5,10 +5,11 @@
 
 #include <stdlib.h>
 #include <math.h>
-#include "reb-host.h"
-#include "host-lib.h"
 #include <stdio.h>
 #include "sqlite3.h"
+#include "rebol-extension.h"
+
+#define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))
 
 //#define USE_TRACES
 #ifdef  USE_TRACES
