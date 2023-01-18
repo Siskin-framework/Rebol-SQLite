@@ -17,7 +17,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Install Siskin Builder
       uses: oldes/install-siskin@v0.4.1
@@ -36,7 +36,7 @@ jobs:
 
     ###############################################################################
     # Collecting build artifacts...
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: Rebol-SQLite-CI-${{github.run_id}}
         path: ./sqlite-windows-x64.rebx
@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Siskin Builder
         uses: oldes/install-siskin@v0.4.1
@@ -79,7 +79,7 @@ jobs:
       - name: Compress 64bit Rebol SQLite extension
         run:  gzip -9 ./sqlite-linux-x64.rebx
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: Rebol-SQLite-CI-${{github.run_id}}
           path: ./sqlite-linux-*
@@ -88,7 +88,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Siskin Builder
         uses: oldes/install-siskin@v0.4.1
@@ -108,7 +108,7 @@ jobs:
       - name: Compress 64bit Rebol SQLite extension
         run:  gzip -9 ./sqlite-macos-x64.rebx
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: Rebol-SQLite-CI-${{github.run_id}}
           path: ./sqlite-macos-*
