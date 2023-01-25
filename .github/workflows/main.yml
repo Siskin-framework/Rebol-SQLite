@@ -42,13 +42,14 @@ jobs:
         path: ./sqlite-windows-x64.rebx
 
   linux:
-    strategy:
-      fail-fast: true
-      matrix:
-        os: [ubuntu-18.04]
-        #os: [ubuntu-20.04, ubuntu-18.04]
-
-    runs-on: ${{ matrix.os }}
+#   strategy:
+#     fail-fast: true
+#     matrix:
+#       os: [ubuntu-18.04]
+#       #os: [ubuntu-20.04, ubuntu-18.04]
+#
+#   runs-on: ${{ matrix.os }}
+    runs-on: linux-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
