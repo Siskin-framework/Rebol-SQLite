@@ -4,7 +4,7 @@
 !/.editorconfig
 !/rebol
 !/src
-!/test
 !/*.nest
 !/sqlite
 !README.md
+!ci-test.r3

@@ -2,11 +2,10 @@ Rebol [
 	title: "SQLite extension test"
 ]
 
-unless value? 'sqlite [
-	target: rejoin [system/build/os #"-" system/build/arch]
-	print "Trying to import SQLite extension..."
-	sqlite: import probe to-real-file rejoin [%../sqlite- target %.rebx]
-]
+print "Trying to import SQLite extension..."
+;; make sure that we load a fresh extension
+try [system/modules/sqlite: none]
+sqlite: import 'sqlite
 
 ? sqlite
 
