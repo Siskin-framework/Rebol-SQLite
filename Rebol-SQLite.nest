@@ -104,4 +104,16 @@ eggs: only [
 			:target-x64
 		]
 	]
+	#if (system/platform = 'Haiku) [
+		"Rebol sqlite extension: haiku_x86" [
+			name: %sqlite-haiku-x86.rebx
+			:r3-extension
+			:target-x86
+		]
+		"Rebol sqlite extension: haiku_x64" [
+			name: %sqlite-haiku-x64.rebx
+			:r3-extension
+			:target-x64
+		]
+	]
 ]
