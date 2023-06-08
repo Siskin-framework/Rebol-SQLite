@@ -17,7 +17,7 @@ int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx) {
 	int rc;
 
 	RESOLVE_SQLITE_CTX(ctx, 1);
-	sql = RXA_SERIES(frm, 2);
+	RESOLVE_UTF8_STRING(sql, 2);
 
 	db = ctx->db;
 
