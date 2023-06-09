@@ -1,5 +1,5 @@
 //
-// Test Rebol extension
+// Rebol/SQLite extension
 // ====================================
 // Use on your own risc!
 
@@ -9,31 +9,28 @@ int cmd_sqlite_open(RXIFRM* frm, void* reb_ctx) {
 	REBSER  *filename;
 	REBHOB  *hob;
 	SQLITE_CONTEXT *ctx;
-	sqlite3 *db = NULL;
 	int rc;
 
 	RESOLVE_UTF8_STRING(filename, 1);
 
 	hob = RL_MAKE_HANDLE_CONTEXT(Handle_SQLiteDB);
-	if (!hob) goto error;
+	if (!hob) {
+		RXA_SERIES(frm, 1) = "[SQLITE] Failed to allocate a handle!";
+		return RXR_ERROR;
+	}
 	ctx = (SQLITE_CONTEXT*)hob->data;
 
 	rc = sqlite3_open(SERIES_TEXT(filename), &ctx->db);
-	if( rc ) goto error;
+	if(rc != SQLITE_OK) {
+		snprintf((char*)error_buffer, 254,"[SQLITE] %s", sqlite3_errstr(rc));
+		RXA_SERIES(frm, 1) = (void*)error_buffer;
+		return RXR_ERROR;
+	}
 
-	ctx->buf = RL_MAKE_BINARY(1000);
-
-	hob->flags |= HANDLE_CONTEXT; //@@ temp fix!
 	RXA_HANDLE(frm, 1) = hob;
 	RXA_HANDLE_TYPE(frm, 1) = hob->sym;
 	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;
 	RXA_TYPE(frm, 1) = RXT_HANDLE;
 
 	return RXR_VALUE;
-error:
-	if (db) {
-		debug_print("Can't open database: %s\n", sqlite3_errmsg(db));
-		sqlite3_close(db);
-	}
-	return RXR_NONE;
 }

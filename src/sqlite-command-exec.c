@@ -1,5 +1,5 @@
 //
-// Test Rebol extension
+// Rebol/SQLite extension
 // ====================================
 // Use on your own risc!
 

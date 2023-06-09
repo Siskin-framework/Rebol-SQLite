@@ -68,7 +68,7 @@ commands: [
 header: rejoin[
 	{REBOL [Title: "Rebol SQLite Extension"}
 	{ Name: sqlite Type: module Exports: []}
-	{ Version: 3.40.1.0}
+	{ Version: 3.40.1.1}
 	{ Author: Oldes}
 	{ Date: } now
 	{ License: Apache-2.0}
@@ -108,18 +108,22 @@ append header {^/protect/hide 'init-words}
 ;print header
 
 out: make string! 2000
-append out {// auto-generated file, do not modify! //
+append out {//
+// Rebol/SQLite extension
+// auto-generated file, do not modify! //
 
 #include "sqlite-command.h"
 
 #define MIN_REBOL_VER 3
-#define MIN_REBOL_REV 5
-#define MIN_REBOL_UPD 4
+#define MIN_REBOL_REV 10
+#define MIN_REBOL_UPD 2
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)
 
 extern REBCNT Handle_SQLiteDB;
 extern REBCNT Handle_SQLiteSTMT;
+
+extern char* error_buffer[255];
 
 }
 append out join enum-commands "^/};^/"

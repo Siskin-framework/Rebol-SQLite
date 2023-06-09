@@ -1,5 +1,5 @@
 //
-// Test Rebol extension
+// Rebol/SQLite extension
 // ====================================
 // Use on your own risc!
 
@@ -32,12 +32,14 @@ int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx) {
 	//debug_print("prep result: %i\n", rc);
 	//debug_print("tail: %s\n", zTail);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-		return RXR_NONE;
+		snprintf((char*)error_buffer, 254,"[SQLITE] %s %s", sqlite3_errstr(rc), sqlite3_errmsg(db));
+		RXA_SERIES(frm, 1) = (void*)error_buffer;
+		return RXR_ERROR;
 	}
 
-	hobStmt->flags |= HANDLE_CONTEXT; //@@ temp fix!
+	ctxStmt->last_result_code = SQLITE_ROW;
+
+	//hobStmt->flags |= HANDLE_CONTEXT; //@@ temp fix!
 	RXA_HANDLE(frm, 1) = hobStmt;
 	RXA_HANDLE_TYPE(frm, 1) = hobStmt->sym;
 	RXA_HANDLE_FLAGS(frm, 1) = hobStmt->flags;

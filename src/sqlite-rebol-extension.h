@@ -1,15 +1,19 @@
+//
+// Rebol/SQLite extension
 // auto-generated file, do not modify! //
 
 #include "sqlite-command.h"
 
 #define MIN_REBOL_VER 3
-#define MIN_REBOL_REV 5
-#define MIN_REBOL_UPD 4
+#define MIN_REBOL_REV 10
+#define MIN_REBOL_UPD 2
 #define VERSION(a, b, c) (a << 16) + (b << 8) + c
 #define MIN_REBOL_VERSION VERSION(MIN_REBOL_VER, MIN_REBOL_REV, MIN_REBOL_UPD)
 
 extern REBCNT Handle_SQLiteDB;
 extern REBCNT Handle_SQLiteSTMT;
+
+extern char* error_buffer[255];
 
 enum sqlite_commands {
 	CMD_SQLITE_INIT_WORDS,
@@ -44,7 +48,7 @@ int cmd_sqlite_initialize(RXIFRM* frm, void* reb_ctx);
 int cmd_sqlite_shutdown(RXIFRM* frm, void* reb_ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.40.1.0 Author: Oldes Date: 16-Jan-2023/15:28:16+1:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.40.1.1 Author: Oldes Date: 9-Jun-2023/11:09:09+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"init-words: command [cmd-words [block!] arg-words [block!]]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\

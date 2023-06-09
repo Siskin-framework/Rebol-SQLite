@@ -1,5 +1,5 @@
 //
-// test Rebol extension
+// Rebol/SQLite extension
 // ====================================
 // Use on your own risc!
 
@@ -15,10 +15,11 @@ REBCNT Handle_SQLiteSTMT;
 
 REBDEC doubles[DOUBLE_BUFFER_SIZE];
 RXIARG arg[ARG_BUFFER_SIZE];
+
+char* error_buffer[255]; // temporary buffer used to pass an exception messages to Rebol side
 //============================================//
 
 static const char* init_block = EXT_SQLITE_INIT_CODE;
-
 
 void* releaseSQLiteDBHandle(void* hndl) {
 	SQLITE_CONTEXT *ctx = (SQLITE_CONTEXT*)hndl;
