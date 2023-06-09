@@ -25,11 +25,17 @@ sys/make-scheme [
 				any [select port/spec 'path   %./]
 				any [select port/spec 'target %.db]
 			]
-			port/spec/path: path: clean-path path
+			port/spec/path: copy path: clean-path path
 			if all [not new not exists? path][
 				cause-error 'Access 'cannot-open reduce [path "file not exists!"]
 			]
-
+			;; SQLite expect full path in the local format (C:/ on Windows)
+			;; but Rebol's open function does not accept string...
+			;; so do this strange thing to get over it
+			all [
+				system/platform = 'Windows
+				path: as file! to-local-file path
+			]
 			port/state: make object! [
 				db:          sqlite/open path  ;; used to store a database handle
 				statements:  #()               ;; prepared statements
@@ -151,7 +157,7 @@ print try [open/new sqlite:not-exists/dir]
 db: open/new sqlite:new.db
 
 ;; Allow verbose SQLite traces...
-modify db 'trace-level 3 ;= SQLITE_TRACE_STMT or SQLITE_TRACE_PROFILE
+;modify db 'trace-level 3 ;= SQLITE_TRACE_STMT or SQLITE_TRACE_PROFILE
 
 ;; Execute multiple queries at once...
 write db {
