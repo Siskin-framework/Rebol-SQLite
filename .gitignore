@@ -8,3 +8,4 @@
 !/sqlite
 !README.md
 !ci-test.r3
+!sqlite-scheme.r3
