@@ -33,6 +33,7 @@ static int trace_callback(unsigned type, void* ctx,void* pStmt,void* pValue){
 			puts("unknown");
 			break;
 	}
+	fflush(stdout);
 	return SQLITE_OK;
 }
 

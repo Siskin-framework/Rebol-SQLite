@@ -157,7 +157,7 @@ print try [open/new sqlite:not-exists/dir]
 db: open/new sqlite:new.db
 
 ;; Allow verbose SQLite traces...
-;modify db 'trace-level 3 ;= SQLITE_TRACE_STMT or SQLITE_TRACE_PROFILE
+modify db 'trace-level 3 ;= SQLITE_TRACE_STMT or SQLITE_TRACE_PROFILE
 
 ;; Execute multiple queries at once...
 write db {
