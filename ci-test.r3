@@ -18,6 +18,9 @@ with sqlite [
 	print info/of db
 	trace db 3 ;= SQLITE_TRACE_STMT or SQLITE_TRACE_PROFILE
 
+	print as-green "^/Testing that EXEC throws an error on invalid query"
+	print try [ exec db "INVALID" ]
+
 	exec db {
 BEGIN TRANSACTION;
 /* delete any tables used in the test */

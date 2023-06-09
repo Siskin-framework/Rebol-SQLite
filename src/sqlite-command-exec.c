@@ -19,7 +19,6 @@ int cmd_sqlite_exec(RXIFRM* frm, void* reb_ctx) {
 	REBSER  *sql;
 	SQLITE_CONTEXT *ctx;
 	sqlite3 *db = NULL;
-	char *zErrMsg = 0;
 	int rc;
 
 	RESOLVE_SQLITE_CTX(ctx, 1);
@@ -29,11 +28,12 @@ int cmd_sqlite_exec(RXIFRM* frm, void* reb_ctx) {
 
 	//debug_print("exec  DB: %p\n", (void*)db);
 	//debug_print("exec SQL: %s\n", SERIES_TEXT(sql));
-	rc = sqlite3_exec(db, SERIES_TEXT(sql), callback, 0, &zErrMsg);
+	rc = sqlite3_exec(db, SERIES_TEXT(sql), callback, 0, 0);
 	//debug_print("exec result: %i\n", rc);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
+		snprintf((char*)error_buffer, 254,"[SQLITE] %s %s", sqlite3_errstr(rc), sqlite3_errmsg(db));
+		RXA_SERIES(frm, 1) = (void*)error_buffer;
+		return RXR_ERROR;
 	}
 
 	return RXR_UNSET;
