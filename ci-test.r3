@@ -27,6 +27,9 @@ BEGIN TRANSACTION;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS Cars;
+
+DROP TABLE IF EXISTS Genres;
+
 /* ---------------------------------- */
 CREATE TABLE Cars(Id INTEGER PRIMARY KEY, Name TEXT, Price INTEGER);
 INSERT INTO "Cars" VALUES(1,'Audi',52642);
@@ -36,6 +39,13 @@ INSERT INTO "Cars" VALUES(4,'Volvo',29000);
 INSERT INTO "Cars" VALUES(5,'Bentley',350000);
 INSERT INTO "Cars" VALUES(6,'Citroen',21000);
 INSERT INTO "Cars" VALUES(7,'Hummer',41400);
+
+
+CREATE TABLE IF NOT EXISTS Genres (
+	genre_id INTEGER PRIMARY KEY,
+	name TEXT NOT NULL
+);
+
 COMMIT;}
 
 	exec db {INSERT INTO "Cars" VALUES(null,'Hummer',null);}
@@ -83,6 +93,20 @@ COMMIT;}
 	exec db {INSERT INTO t2 VALUES('000123');}
 	exec db {SELECT typeof(a), quote(a) FROM t2;} ;-- result: integer 123
 
+
+	print-horizontal-line
+	stmt: prepare db {INSERT INTO Genres (name) VALUES (?)}
+	step/with stmt ["Fantasy"]
+	step/with stmt ["Scifi"  ]
+	finalize stmt
+	stmt: prepare db {SELECT * FROM Genres}
+	genres: step/rows stmt -1 ;; all rows
+	if 4 <> length? genres [
+		print as-red "Something is wrong!"
+	]
+
+	finalize stmt
+	? genres
 	
 	print as-green "^/Shutting down.."
 	print info

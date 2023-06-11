@@ -16,12 +16,13 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 	sqlite3_stmt *stmt;
 	char *zErrMsg = 0;
 	int rc, columns, bytes, row, col, type;
-	int allRows;
+	int refRows, allRows = 0;
 	i64 maxRows, rows;
 
 	RESOLVE_SQLITE_STMT(ctxStmt, 1);
-	allRows = !RXA_REF(frm, 2);
+	refRows = RXA_REF(frm, 2);
 	maxRows = RXA_INT64(frm, 3);
+	if (!refRows) maxRows = 1;
 	if (maxRows < 1) allRows = maxRows = 1;
 	rows = (maxRows > 1000) ? 1000 : maxRows; //no need to use exact pow2 numbers, Rebol will do it anyway
 
@@ -58,11 +59,13 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 			//debug_print("bind result: %i\n", rc);
 		}
 	}
-	rc = ctxStmt->last_result_code;
+
+	rc = sqlite3_stmt_readonly(stmt) ? ctxStmt->last_result_code : SQLITE_ROW;
+
 	for (row = 0; rc == SQLITE_ROW && (allRows || row < maxRows); row++) {
 		rc = sqlite3_step(stmt);
 		ctxStmt->last_result_code = rc;
-		//debug_print("row: %i = step result: %i, requested rows: %li\n", row, rc, maxRows);
+		//debug_print("row: %i = step result: %i, requested rows: %li allRows: %i\n", row, rc, maxRows, allRows);
 		switch(rc) {
 			case SQLITE_ROW:
 				if (!blk) {
@@ -117,8 +120,8 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 				break;
 			case SQLITE_DONE:
 				//trace("step done");
-				sqlite3_reset(stmt);
 				if(blk) return RXR_VALUE;
+				sqlite3_reset(stmt);
 				return RXR_NONE;
 			case SQLITE_BUSY:
 				//trace("step busy");
