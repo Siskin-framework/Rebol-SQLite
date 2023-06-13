@@ -30,6 +30,10 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 
 	if (RXA_REF(frm, 4)) { // with
 		ser = RXA_SERIES(frm, 5);
+
+		//sqlite3_reset() does not reset the bindings on a prepared statement!
+		sqlite3_clear_bindings(stmt);
+		
 		for(col = 0; col < SERIES_TAIL(ser); col++) {
 			type = RL_GET_VALUE(ser, col, &arg);
 			//printf("arg type: %i\n", type);

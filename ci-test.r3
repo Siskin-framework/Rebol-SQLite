@@ -28,6 +28,7 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS Cars;
 
+DROP TABLE IF EXISTS Authors;
 DROP TABLE IF EXISTS Genres;
 
 /* ---------------------------------- */
@@ -40,6 +41,14 @@ INSERT INTO "Cars" VALUES(5,'Bentley',350000);
 INSERT INTO "Cars" VALUES(6,'Citroen',21000);
 INSERT INTO "Cars" VALUES(7,'Hummer',41400);
 
+
+	CREATE TABLE IF NOT EXISTS Authors (
+		author_id INTEGER PRIMARY KEY,
+		first_name TEXT,
+		family_name TEXT NOT NULL,
+		date_of_birth TEXT,
+		date_of_death TEXT
+	);
 
 CREATE TABLE IF NOT EXISTS Genres (
 	genre_id INTEGER PRIMARY KEY,
@@ -104,10 +113,25 @@ COMMIT;}
 	if 4 <> length? genres [
 		print as-red "Something is wrong!"
 	]
-
 	finalize stmt
 	? genres
-	
+
+	print-horizontal-line
+	stmt: prepare db {
+		INSERT INTO Authors (first_name, family_name, date_of_birth, date_of_death)
+		VALUES (?,?,?,?)
+	}
+	step/with stmt ["Patrick" "Rothfuss" "1973-06-06" none]
+	step/with stmt ["Ben" "Bova" "1932-11-8" none]
+	step/with stmt ["Isaac" "Asimov" "1920-01-02" "1992-04-06"]
+	step/with stmt ["Bob" "Billings" none none]
+	step/with stmt ["Jim" "Jones" "1971-12-16" false]
+	finalize stmt
+
+	stmt: sqlite/prepare db "SELECT * FROM Authors"
+	while [rec: sqlite/step stmt] [ probe rec ]
+	finalize stmt
+
 	print as-green "^/Shutting down.."
 	print info
 	close db
