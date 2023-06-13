@@ -37,6 +37,10 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 		for(col = 0; col < SERIES_TAIL(ser); col++) {
 			type = RL_GET_VALUE(ser, col, &arg);
 			//printf("arg type: %i\n", type);
+			if (type == RXT_WORD || type == RXT_GET_WORD || type == RXT_GET_PATH) {
+				type = RL_GET_VALUE_RESOLVED(ser, col, &arg);
+			} 
+			//printf("arg type: %i\n", type);
 			rc = -1;
 			switch(type) {
 				case RXT_INTEGER:
@@ -59,6 +63,10 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 				case RXT_LOGIC:
 					rc = sqlite3_bind_int(stmt, col+1, arg.int32a);
 					break;
+			}
+			if (rc < 0) {
+				RXA_SERIES(frm, 1) = "[SQLITE] Unsupported value type!";
+				return RXR_ERROR;
 			}
 			//debug_print("bind result: %i\n", rc);
 		}
@@ -141,6 +149,12 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 				RXA_SERIES(frm, 1) = "[SQLITE] Statement misuse!";
 				return RXR_ERROR;
 		}
+	}
+	//debug_print("step result: %i\n", rc);
+	if (rc < SQLITE_ROW && rc != SQLITE_OK) {
+		rc = sqlite3_reset(stmt);
+		RXA_SERIES(frm, 1) = (void*)sqlite3_errstr(rc);
+		return RXR_ERROR;
 	}
 	if(blk) return RXR_VALUE;
 	return RXR_NONE;
