@@ -126,6 +126,11 @@ COMMIT;}
 	step/with stmt ["Isaac" "Asimov" "1920-01-02" "1992-04-06"]
 	step/with stmt ["Bob" "Billings"] ;; missing values are NULL
 	step/with stmt ["Jim" "Jones" "1971-12-16" false]
+
+	print as-yellow "Testing constraint error..."
+	;; family_name cannot be NULL, so there must be an error:
+	print try [step/with stmt ["Jim" none "1971-12-16" false]]
+	
 	finalize stmt
 
 	stmt: sqlite/prepare db "SELECT * FROM Authors"
