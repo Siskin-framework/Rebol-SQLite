@@ -42,13 +42,13 @@ INSERT INTO "Cars" VALUES(6,'Citroen',21000);
 INSERT INTO "Cars" VALUES(7,'Hummer',41400);
 
 
-	CREATE TABLE IF NOT EXISTS Authors (
-		author_id INTEGER PRIMARY KEY,
-		first_name TEXT,
-		family_name TEXT NOT NULL,
-		date_of_birth TEXT,
-		date_of_death TEXT
-	);
+CREATE TABLE IF NOT EXISTS Authors (
+	author_id INTEGER PRIMARY KEY,
+	first_name TEXT,
+	family_name TEXT NOT NULL,
+	date_of_birth TEXT,
+	date_of_death TEXT
+);
 
 CREATE TABLE IF NOT EXISTS Genres (
 	genre_id INTEGER PRIMARY KEY,
@@ -124,7 +124,7 @@ COMMIT;}
 	step/with stmt ["Patrick" "Rothfuss" "1973-06-06" none]
 	step/with stmt ["Ben" "Bova" "1932-11-8" none]
 	step/with stmt ["Isaac" "Asimov" "1920-01-02" "1992-04-06"]
-	step/with stmt ["Bob" "Billings" none none]
+	step/with stmt ["Bob" "Billings"] ;; missing values are NULL
 	step/with stmt ["Jim" "Jones" "1971-12-16" false]
 	finalize stmt
 
