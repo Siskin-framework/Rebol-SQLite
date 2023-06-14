@@ -221,7 +221,7 @@ int cmd_sqlite_eval(RXIFRM* frm, void* reb_ctx) {
 				return RXR_VALUE;
 
 			default:
-				rc = sqlite3_reset(stmt);
+				//rc = sqlite3_reset(stmt);
 				goto finish;
 		}
 	}
