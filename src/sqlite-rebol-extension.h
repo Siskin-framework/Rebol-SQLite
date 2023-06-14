@@ -50,11 +50,11 @@ int cmd_sqlite_shutdown(RXIFRM *frm, void *ctx);
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.42.0.1 Author: Oldes Date: 15-Jun-2023/0:00:04+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.42.0.1 Author: Oldes Date: 15-Jun-2023/0:10:53+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\
 	"exec: command [{Runs zero or more semicolon-separate SQL statements} db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
-	"eval: command [\"...\" db [handle!] \"sqlite-db\" query [string! block! handle!] {semicolon-separated statements, a single query with parameters or a prepared statement}]\n"\
+	"eval: command [\"Evaluates SQL statement with optional paramaters\" db [handle!] \"sqlite-db\" query [string! block! handle!] {single statement, a single statement with parameters or a prepared statement}]\n"\
 	"last-insert-id: command [{Returns the rowid of the most recent successful INSERT into a rowid table or virtual table on database connection} db [handle!] \"sqlite-db\"]\n"\
 	"finalize: command [\"Deletes prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
 	"trace: command [\"Traces debug output\" db [handle!] \"sqlite-db\" mask [integer!]]\n"\

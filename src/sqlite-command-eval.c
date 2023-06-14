@@ -91,7 +91,7 @@ int cmd_sqlite_eval(RXIFRM* frm, void* reb_ctx) {
 	int rc;
 	int ret = RXR_UNSET;
 
-	maxRows = 100; //(REBCNT)-1; //TODO: it should be user defined
+	maxRows = (REBCNT)-1; //TODO: it should be user defined
 
 	RESOLVE_SQLITE_CTX(ctx, 1);
 	db = ctx->db;

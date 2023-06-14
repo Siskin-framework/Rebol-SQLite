@@ -21,9 +21,9 @@ commands: [
 		sql  [string!] "statements"
 	]
 	eval: [
-		{...}
+		{Evaluates SQL statement with optional paramaters}
 		db    [handle!] "sqlite-db"
-		query [string! block! handle!] "semicolon-separated statements, a single query with parameters or a prepared statement"
+		query [string! block! handle!] "single statement, a single statement with parameters or a prepared statement"
 	]
 	last-insert-id: [
 		"Returns the rowid of the most recent successful INSERT into a rowid table or virtual table on database connection"
