@@ -29,6 +29,7 @@ typedef struct reb_sqlite_context {
 	sqlite3* db;
 	REBSER* buf;
 	int id;
+	int last_insert_count;
 } SQLITE_CONTEXT;
 
 typedef struct reb_sqlite_stmt {
@@ -37,7 +38,7 @@ typedef struct reb_sqlite_stmt {
 } SQLITE_STMT;
 
 
-
+REBSER* utf8_string(RXIARG arg);
 REBOOL fetch_word (REBSER *cmds, REBCNT index, u32* words, REBCNT *cmd);
 REBOOL fetch_mode (REBSER *cmds, REBCNT index, REBCNT *result, REBCNT start, REBCNT max);
 REBOOL fetch_color(REBSER *cmds, REBCNT index, REBCNT *cmd);
@@ -64,8 +65,9 @@ extern RXIARG arg[ARG_BUFFER_SIZE];
 
 
 #define RESOLVE_UTF8_STRING(n, i) \
-	n = RXA_SERIES(frm, i);        \
-	n = RL_ENCODE_UTF8_STRING(SERIES_DATA(n), SERIES_TAIL(n), SERIES_WIDE(n) > 1, FALSE);
+	n   = RXA_SERIES(frm, i);     \
+	idx = RXA_INDEX(frm, i);      \
+	n = RL_ENCODE_UTF8_STRING(SERIES_SKIP(n, idx), SERIES_TAIL(n)-idx, SERIES_WIDE(n) > 1, FALSE);
 
 #define RESOLVE_SQLITE_CTX(n, i)                     \
 			hob = RXA_HANDLE(frm, i);               \

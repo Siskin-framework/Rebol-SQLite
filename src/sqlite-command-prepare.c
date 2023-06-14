@@ -13,11 +13,10 @@ int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx) {
 	SQLITE_STMT *ctxStmt;
 	sqlite3 *db = NULL;
 	char *zErrMsg = 0;
-	const char *zTail = 0;
 	int rc;
 
 	RESOLVE_SQLITE_CTX(ctx, 1);
-	RESOLVE_UTF8_STRING(sql, 2);
+	sql = utf8_string(RXA_ARG(frm, 2));
 
 	db = ctx->db;
 
@@ -27,7 +26,7 @@ int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx) {
 	hobStmt = RL_MAKE_HANDLE_CONTEXT(Handle_SQLiteSTMT);
 	ctxStmt = (SQLITE_STMT*)hobStmt->data;
 
-	rc = sqlite3_prepare_v2(db, SERIES_TEXT(sql), SERIES_TAIL(sql), &ctxStmt->stmt, &zTail);
+	rc = sqlite3_prepare_v2(db, SERIES_TEXT(sql), SERIES_TAIL(sql), &ctxStmt->stmt, 0);
 
 	//debug_print("prep result: %i\n", rc);
 	//debug_print("tail: %s\n", zTail);

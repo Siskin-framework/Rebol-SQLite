@@ -39,10 +39,12 @@ r3-extension: [
 	files: only [
 		%sqlite/sqlite3.c
 		%src/sqlite-rebol-extension.c
+		%src/sqlite-commands-table.c
 		%src/sqlite-command.c
 		%src/sqlite-command-info.c
 		%src/sqlite-command-open.c
 		%src/sqlite-command-close.c
+		%src/sqlite-command-eval.c
 		%src/sqlite-command-exec.c
 		%src/sqlite-command-finalize.c
 		%src/sqlite-command-prepare.c
@@ -51,6 +53,7 @@ r3-extension: [
 		%src/sqlite-command-trace.c
 		%src/sqlite-command-initialize.c
 		%src/sqlite-command-shutdown.c
+		%src/sqlite-command-last-insert-id.c
 	]
 	include: [
 		%src/

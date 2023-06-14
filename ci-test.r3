@@ -104,38 +104,69 @@ COMMIT;}
 
 
 	print-horizontal-line
-	stmt: prepare db {INSERT INTO Genres (name) VALUES (?)}
-	step/with stmt ["Fantasy"]
-	step/with stmt ["Scifi"  ]
-	finalize stmt
-	stmt: prepare db {SELECT * FROM Genres}
-	genres: step/rows stmt -1 ;; all rows
-	if 4 <> length? genres [
-		print as-red "Something is wrong!"
-	]
-	finalize stmt
-	? genres
+	trace db 1 ;= SQLITE_TRACE_STMT
+
+
+	probe eval db [{INSERT INTO Genres (name) VALUES (?)}  "Fantasy" "Science Fiction" "French Poetry" "Crime"]
+	probe eval db [{INSERT INTO Genres (name) VALUES (?)}  "Comedy"]
+
+	last-id: sqlite/last-insert-id db
+	? last-id
 
 	print-horizontal-line
-	stmt: prepare db {
-		INSERT INTO Authors (first_name, family_name, date_of_birth, date_of_death)
-		VALUES (?,?,?,?)
-	}
-	step/with stmt ["Patrick" "Rothfuss" "1973-06-06" none]
-	step/with stmt ["Ben" "Bova" "1932-11-8" none]
-	step/with stmt ["Isaac" "Asimov" "1920-01-02" "1992-04-06"]
-	step/with stmt ["Bob" "Billings"] ;; missing values are NULL
-	step/with stmt ["Jim" "Jones" "1971-12-16" false]
+	print as-yellow "Using eval command with string as a query..."
+
+	probe eval db sql: {SELECT * FROM Genres}
+	probe eval db [{SELECT * FROM Genres}] ;; in block, but no parameters
+	probe eval db [:sql] ;; in block as a word, but no parameters
+	;; also test, if query works when not at its head position
+	probe eval db next {XSELECT * FROM Genres}
+	probe eval db reduce [next {XSELECT * FROM Genres}]
+
+	print-horizontal-line
+	print as-yellow "Using prepared statement with eval..."
+
+	stmt-genres-like!: prepare db {SELECT Name FROM Genres WHERE Name LIKE :pattern}
+	probe eval db  stmt-genres-like!
+	probe eval db [stmt-genres-like! "F%"]
+	probe eval db [stmt-genres-like! "C%"]
+	finalize stmt-genres-like!
+
+	print as-yellow "Using already finalized statement throws an error..."
+	print try [eval db [stmt-genres-like! "F%"]]
+
+
+	print-horizontal-line
+	print as-yellow "Using eval command with parameters in blocks..."
+	probe eval db [
+		{INSERT INTO Authors (first_name, family_name, date_of_birth, date_of_death) VALUES (?,?,?,?)}
+		["Patrick" "Rothfuss" "1973-06-06" none        ]
+		["Ben"     "Bova"     "1932-11-08" none        ]
+		["Isaac"   "Asimov"   "1920-01-02" "1992-04-06"]
+		["Bob"     "Billings"                          ] ;; missing values are NULL
+		["Jim"     "Jones"    "1971-12-16"             ] ;; missing values are NULL
+	]
+	probe eval db "SELECT family_name, date_of_birth FROM Authors"
+
+	print-horizontal-line
 
 	print as-yellow "Testing constraint error..."
 	;; family_name cannot be NULL, so there must be an error:
-	print try [step/with stmt ["Jim" none "1971-12-16" false]]
-	
+	print try [
+		eval db [
+			{INSERT INTO Authors (first_name, family_name, date_of_birth, date_of_death) VALUES (?,?,?,?)}
+			"Jim" none "1971-12-16" none
+		]
+	]
+
+
+	print-horizontal-line
+	print as-yellow "Getting authors one by one..."
+	stmt: prepare db "SELECT * FROM Authors"
+	while [rec: step stmt] [ probe rec ]
 	finalize stmt
 
-	stmt: sqlite/prepare db "SELECT * FROM Authors"
-	while [rec: sqlite/step stmt] [ probe rec ]
-	finalize stmt
+
 
 	print as-green "^/Shutting down.."
 	print info

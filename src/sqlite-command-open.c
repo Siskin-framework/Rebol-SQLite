@@ -11,7 +11,7 @@ int cmd_sqlite_open(RXIFRM* frm, void* reb_ctx) {
 	SQLITE_CONTEXT *ctx;
 	int rc;
 
-	RESOLVE_UTF8_STRING(filename, 1);
+	filename = utf8_string(RXA_ARG(frm, 1));
 
 	hob = RL_MAKE_HANDLE_CONTEXT(Handle_SQLiteDB);
 	if (!hob) {

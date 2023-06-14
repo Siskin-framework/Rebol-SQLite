@@ -15,11 +15,13 @@ extern REBCNT Handle_SQLiteSTMT;
 
 extern char* error_buffer[255];
 
-enum sqlite_commands {
-	CMD_SQLITE_INIT_WORDS,
+
+enum ext_commands {
 	CMD_SQLITE_INFO,
 	CMD_SQLITE_OPEN,
 	CMD_SQLITE_EXEC,
+	CMD_SQLITE_EVAL,
+	CMD_SQLITE_LAST_INSERT_ID,
 	CMD_SQLITE_FINALIZE,
 	CMD_SQLITE_TRACE,
 	CMD_SQLITE_PREPARE,
@@ -29,30 +31,31 @@ enum sqlite_commands {
 	CMD_SQLITE_INITIALIZE,
 	CMD_SQLITE_SHUTDOWN,
 };
-enum words_sqlite_cmd {W_SQLITE_CMD_0,
-};
-enum words_sqlite_arg {W_SQLITE_ARG_0,
-};
 
-int cmd_sqlite_init_words(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_info(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_open(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_exec(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_finalize(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_trace(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_prepare(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_reset(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_close(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_initialize(RXIFRM* frm, void* reb_ctx);
-int cmd_sqlite_shutdown(RXIFRM* frm, void* reb_ctx);
+
+int cmd_sqlite_info(RXIFRM *frm, void *ctx);
+int cmd_sqlite_open(RXIFRM *frm, void *ctx);
+int cmd_sqlite_exec(RXIFRM *frm, void *ctx);
+int cmd_sqlite_eval(RXIFRM *frm, void *ctx);
+int cmd_sqlite_last_insert_id(RXIFRM *frm, void *ctx);
+int cmd_sqlite_finalize(RXIFRM *frm, void *ctx);
+int cmd_sqlite_trace(RXIFRM *frm, void *ctx);
+int cmd_sqlite_prepare(RXIFRM *frm, void *ctx);
+int cmd_sqlite_reset(RXIFRM *frm, void *ctx);
+int cmd_sqlite_step(RXIFRM *frm, void *ctx);
+int cmd_sqlite_close(RXIFRM *frm, void *ctx);
+int cmd_sqlite_initialize(RXIFRM *frm, void *ctx);
+int cmd_sqlite_shutdown(RXIFRM *frm, void *ctx);
+
+typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.40.1.1 Author: Oldes Date: 9-Jun-2023/11:09:09+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
-	"init-words: command [cmd-words [block!] arg-words [block!]]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.42.0.1 Author: Oldes Date: 15-Jun-2023/0:00:04+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\
 	"exec: command [{Runs zero or more semicolon-separate SQL statements} db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
+	"eval: command [\"...\" db [handle!] \"sqlite-db\" query [string! block! handle!] {semicolon-separated statements, a single query with parameters or a prepared statement}]\n"\
+	"last-insert-id: command [{Returns the rowid of the most recent successful INSERT into a rowid table or virtual table on database connection} db [handle!] \"sqlite-db\"]\n"\
 	"finalize: command [\"Deletes prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
 	"trace: command [\"Traces debug output\" db [handle!] \"sqlite-db\" mask [integer!]]\n"\
 	"prepare: command [\"Prepares SQL statement\" db [handle!] \"sqlite-db\" sql [string!] \"statement\"]\n"\
@@ -60,6 +63,5 @@ int cmd_sqlite_shutdown(RXIFRM* frm, void* reb_ctx);
 	"step: command [\"Executes prepared statement\" stmt [handle!] \"sqlite-stmt\" /rows {Multiple times if there is enough rows in the result} count [integer!] /with parameters [block!]]\n"\
 	"close: command [\"Closes a database connection\" db [handle!] \"sqlite-db\"]\n"\
 	"initialize: command [\"Initializes the SQLite library\"]\n"\
-	"shutdown: command [\"Deallocate any resources that were allocated\"]\n"\
-	"init-words words: [] []\n"\
-	"protect/hide 'init-words\n"\
+	"shutdown: command [\"Deallocate any resources that were allocated\"]\n"
+

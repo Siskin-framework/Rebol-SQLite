@@ -5,6 +5,12 @@
 
 #include "sqlite-command.h"
 
+REBSER *utf8_string(RXIARG arg) {
+	REBSER *ser = arg.series;
+	REBCNT  idx = arg.index;
+	return RL_ENCODE_UTF8_STRING(SERIES_SKIP(ser, idx), SERIES_TAIL(ser)-idx, SERIES_WIDE(ser) > 1, FALSE);
+}
+
 
 REBOOL fetch_word(REBSER *cmds, REBCNT index, u32* words, REBCNT *cmd) {
 	RXIARG arg;

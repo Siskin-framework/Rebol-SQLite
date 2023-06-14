@@ -3,12 +3,9 @@ REBOL [
 	type: module
 ]
 
-cmd-words: []
-arg-words: []
-
+;- all extension command specifications ----------------------------------------
 commands: [
-	init-words: [cmd-words [block!] arg-words [block!]]
-	;--------------------------
+	;init-words: [cmd-words [block!] arg-words [block!]]
 
 	info: [
 		{Returns info about SQLite extension library}
@@ -22,6 +19,15 @@ commands: [
 		{Runs zero or more semicolon-separate SQL statements}
 		db   [handle!] "sqlite-db"
 		sql  [string!] "statements"
+	]
+	eval: [
+		{...}
+		db    [handle!] "sqlite-db"
+		query [string! block! handle!] "semicolon-separated statements, a single query with parameters or a prepared statement"
+	]
+	last-insert-id: [
+		"Returns the rowid of the most recent successful INSERT into a rowid table or virtual table on database connection"
+		db    [handle!] "sqlite-db"
 	]
 	finalize: [
 		"Deletes prepared statement"
@@ -60,55 +66,53 @@ commands: [
 	shutdown: [
 		{Deallocate any resources that were allocated}
 	]
-
-	;--------------------------
 ]
 
-
-header: rejoin[
+;-------------------------------------- ----------------------------------------
+reb-code: rejoin[
 	{REBOL [Title: "Rebol SQLite Extension"}
 	{ Name: sqlite Type: module Exports: []}
-	{ Version: 3.42.0.0}
+	{ Version: 3.42.0.1}
 	{ Author: Oldes}
 	{ Date: } now
 	{ License: Apache-2.0}
 	{ Url: https://github.com/Siskin-framework/Rebol-SQLite}
 	#"]"
 ]
-enum-commands:  {enum sqlite_commands ^{}
-enum-cmd-words: {enum words_sqlite_cmd ^{W_SQLITE_CMD_0,}
-enum-arg-words: {enum words_sqlite_arg ^{W_SQLITE_ARG_0,}
-func-commands: clear {}
+enu-commands:  "" ;; command name enumerations
+cmd-declares:  "" ;; command function declarations
+cmd-dispatch:  "" ;; command functionm dispatcher
 
-foreach word cmd-words [
-	word: uppercase form word
-	replace/all word #"-" #"_"
-	append enum-cmd-words ajoin ["^/^-W_SQLITE_CMD_" word #","]
-]
-foreach word arg-words [
-	word: uppercase form word
-	replace/all word #"-" #"_"
-	append enum-arg-words ajoin ["^/^-W_SQLITE_ARG_" word #","]
-]
-
+;- generate C and Rebol code from the command specifications -------------------
 foreach [name spec] commands [
-	name: form name
-	append header ajoin [lf name ": command " mold/flat spec]
+	append reb-code ajoin [lf name ": command "]
+	new-line/all spec false
+	append/only reb-code mold spec
 
+	name: form name
 	replace/all name #"-" #"_"
-	append func-commands ajoin ["^/int cmd_sqlite_" name "(RXIFRM* frm, void* reb_ctx);"]
-	append enum-commands ajoin ["^/^-CMD_SQLITE_" uppercase name #","]
+	
+	append enu-commands ajoin ["^/^-CMD_SQLITE_" uppercase copy name #","]
+
+	append cmd-declares ajoin ["^/int cmd_sqlite_" name "(RXIFRM *frm, void *ctx);"]
+	append cmd-dispatch ajoin ["^-cmd_sqlite_" name ",^/"]
 ]
 
-new-line/all cmd-words false
-new-line/all arg-words false
-append header rejoin [{^/init-words words: } mold cmd-words #" " mold arg-words]
-append header {^/protect/hide 'init-words}
+;- additional Rebol initialization code ----------------------------------------
+;append reb-code rejoin [{^/init-words words: } mold cmd-words #" " mold arg-words]
+;append reb-code {^/protect/hide 'init-words}
+;print reb-code
 
-;print header
+;- convert Rebol code to C-string ----------------------------------------------
+init-code: copy ""
+foreach line split reb-code lf [
+	replace/all line #"^"" {\"}
+	append init-code ajoin [{\^/^-"} line {\n"}] 
+]
 
-out: make string! 2000
-append out {//
+;-- C file templates -----------------------------------------------------------
+header: next {
+//
 // Rebol/SQLite extension
 // auto-generated file, do not modify! //
 
@@ -125,21 +129,29 @@ extern REBCNT Handle_SQLiteSTMT;
 
 extern char* error_buffer[255];
 
+
+enum ext_commands {$enu-commands
+};
+
+$cmd-declares
+
+typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
+
+#define EXT_SQLITE_INIT_CODE $init-code
+
 }
-append out join enum-commands "^/};^/"
-append out join enum-cmd-words "^/};^/"
-append out join enum-arg-words "^/};^/"
-append out func-commands
-append out {^/^/#define EXT_SQLITE_INIT_CODE \}
+;;------------------------------------------------------------------------------
+ctable: next {
+//
+// auto-generated file, do not modify!
+//
+#include "sqlite-rebol-extension.h"
+MyCommandPointer Command[] = {
+$cmd-dispatch};
+}
+
+;- output generated files ------------------------------------------------------
+write %sqlite-rebol-extension.h reword :header self
+write %sqlite-commands-table.c  reword :ctable self
 
 
-foreach line split header lf [
-	replace/all line #"^"" {\"}
-	append out ajoin [{^/^-"} line {\n"\}] 
-]
-append out "^/"
-
-
-;print out
-
-write %sqlite-rebol-extension.h out

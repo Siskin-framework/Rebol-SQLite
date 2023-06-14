@@ -7,7 +7,7 @@
 
 RL_LIB *RL; // Link back to reb-lib from embedded extensions
 
-//==== Globals ===============================//
+//==== Globals ===============================================================//
 u32*   words_sqlite_cmd;
 u32*   words_sqlite_arg;
 REBCNT Handle_SQLiteDB;
@@ -17,7 +17,9 @@ REBDEC doubles[DOUBLE_BUFFER_SIZE];
 RXIARG arg[ARG_BUFFER_SIZE];
 
 char* error_buffer[255]; // temporary buffer used to pass an exception messages to Rebol side
-//============================================//
+
+extern MyCommandPointer Command[];
+//============================================================================//
 
 static const char* init_block = EXT_SQLITE_INIT_CODE;
 
@@ -57,27 +59,7 @@ RXIEXT const char *RX_Init(int opts, RL_LIB *lib) {
 
 
 RXIEXT int RX_Call(int cmd, RXIFRM *frm, void *ctx) {
-	switch (cmd) {
-	case CMD_SQLITE_INFO:    return cmd_sqlite_info(frm, ctx);
-	case CMD_SQLITE_OPEN:    return cmd_sqlite_open(frm, ctx);
-	case CMD_SQLITE_EXEC:    return cmd_sqlite_exec(frm, ctx);
-	case CMD_SQLITE_FINALIZE:return cmd_sqlite_finalize(frm, ctx);
-	case CMD_SQLITE_CLOSE:   return cmd_sqlite_close(frm, ctx);
-	case CMD_SQLITE_PREPARE: return cmd_sqlite_prepare(frm, ctx);
-	case CMD_SQLITE_RESET:   return cmd_sqlite_reset(frm, ctx);
-	case CMD_SQLITE_STEP:    return cmd_sqlite_step(frm, ctx);
-	case CMD_SQLITE_TRACE:   return cmd_sqlite_trace(frm, ctx);
-
-	case CMD_SQLITE_INITIALIZE: return cmd_sqlite_initialize(frm, ctx);
-	case CMD_SQLITE_SHUTDOWN: return cmd_sqlite_shutdown(frm, ctx);
-
-	case CMD_SQLITE_INIT_WORDS:
-		words_sqlite_cmd = RL_MAP_WORDS(RXA_SERIES(frm,1));
-		words_sqlite_arg = RL_MAP_WORDS(RXA_SERIES(frm,2));
-		return RXR_UNSET;
-	} // end of commands
-
-	return RXR_ERROR; //@@ FIXME!! This is not correct!
+	return Command[cmd](frm, ctx);
 }
 
 RXIEXT int RX_Quit(int opts) {
