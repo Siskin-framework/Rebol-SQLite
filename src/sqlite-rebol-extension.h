@@ -28,6 +28,7 @@ enum ext_commands {
 	CMD_SQLITE_RESET,
 	CMD_SQLITE_STEP,
 	CMD_SQLITE_CLOSE,
+	CMD_SQLITE_COLUMNS,
 	CMD_SQLITE_INITIALIZE,
 	CMD_SQLITE_SHUTDOWN,
 };
@@ -44,13 +45,14 @@ int cmd_sqlite_prepare(RXIFRM *frm, void *ctx);
 int cmd_sqlite_reset(RXIFRM *frm, void *ctx);
 int cmd_sqlite_step(RXIFRM *frm, void *ctx);
 int cmd_sqlite_close(RXIFRM *frm, void *ctx);
+int cmd_sqlite_columns(RXIFRM *frm, void *ctx);
 int cmd_sqlite_initialize(RXIFRM *frm, void *ctx);
 int cmd_sqlite_shutdown(RXIFRM *frm, void *ctx);
 
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.42.0.1 Author: Oldes Date: 15-Jun-2023/0:10:53+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.42.0.1 Author: Oldes Date: 15-Jun-2023/17:54:05+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\
 	"exec: command [{Runs zero or more semicolon-separate SQL statements} db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
@@ -62,6 +64,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 	"reset: command [\"Resets prepared statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
 	"step: command [\"Executes prepared statement\" stmt [handle!] \"sqlite-stmt\" /rows {Multiple times if there is enough rows in the result} count [integer!] /with parameters [block!]]\n"\
 	"close: command [\"Closes a database connection\" db [handle!] \"sqlite-db\"]\n"\
+	"columns: command [\"Returns column names associated with the statement\" stmt [handle!] \"sqlite-stmt\"]\n"\
 	"initialize: command [\"Initializes the SQLite library\"]\n"\
 	"shutdown: command [\"Deallocate any resources that were allocated\"]\n"
 

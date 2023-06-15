@@ -59,6 +59,10 @@ commands: [
 		{Closes a database connection}
 		db   [handle!] "sqlite-db"
 	]
+	columns: [
+		{Returns column names associated with the statement}
+		stmt [handle!] "sqlite-stmt"
+	]
 
 	initialize: [
 		{Initializes the SQLite library}

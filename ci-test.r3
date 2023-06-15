@@ -72,16 +72,19 @@ COMMIT;}
 
 	print as-green "^/Random bin generator..."
 
-	sb: prepare db {select randomblob(16)}
+	stmt: prepare db {select randomblob(16)}
+	name: columns stmt
 	loop 4 [
-		probe step sb
-		reset sb
+		print [name #"=" step stmt]
+		reset stmt
 	]
-	finalize sb
+	finalize stmt
 
 	print as-green "^/Using prepared statements and input values..."
 
 	stmt: prepare db "SELECT * FROM Cars WHERE Price > ? ORDER BY name"
+	cols: columns stmt
+	? cols
 	probe step/with/rows stmt [20000] 100
 	probe step/with/rows stmt [40000.0] 100
 	finalize stmt

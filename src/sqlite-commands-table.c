@@ -14,6 +14,7 @@ MyCommandPointer Command[] = {
 	cmd_sqlite_reset,
 	cmd_sqlite_step,
 	cmd_sqlite_close,
+	cmd_sqlite_columns,
 	cmd_sqlite_initialize,
 	cmd_sqlite_shutdown,
 };

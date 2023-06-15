@@ -51,6 +51,7 @@ r3-extension: [
 		%src/sqlite-command-reset.c
 		%src/sqlite-command-step.c
 		%src/sqlite-command-trace.c
+		%src/sqlite-command-columns.c
 		%src/sqlite-command-initialize.c
 		%src/sqlite-command-shutdown.c
 		%src/sqlite-command-last-insert-id.c
