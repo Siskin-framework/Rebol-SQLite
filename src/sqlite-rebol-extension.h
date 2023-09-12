@@ -52,7 +52,7 @@ int cmd_sqlite_shutdown(RXIFRM *frm, void *ctx);
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.42.0.1 Author: Oldes Date: 15-Jun-2023/17:54:05+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.43.1.0 Author: Oldes Date: 12-Sep-2023/17:33:05+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\
 	"exec: command [{Runs zero or more semicolon-separate SQL statements} db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
