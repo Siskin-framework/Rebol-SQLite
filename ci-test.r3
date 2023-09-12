@@ -1,10 +1,14 @@
 Rebol [
 	title: "SQLite extension test"
+	needs:  3.13.1 ;; using system/options/modules as extension location
 ]
 
 print "Trying to import SQLite extension..."
 ;; make sure that we load a fresh extension
 try [system/modules/sqlite: none]
+;; use current directory as a modules location
+system/options/modules: what-dir
+
 sqlite: import 'sqlite
 
 ? sqlite

@@ -4,10 +4,14 @@ Rebol [
 	note:  {This is just an initial proof of concept}
 	version: 0.1.0
 	author: "Oldes"
+	needs:   3.13.1 ;; using system/options/modules as extension location
 ]
 
+print "Trying to import SQLite extension..."
+;; make sure that we load a fresh extension
 try [system/modules/sqlite: none]
-sqlite: import 'sqlite
+;; use current directory as a modules location
+system/options/modules: what-dir
 
 sys/make-scheme [
 	title: "SQLite database scheme"
