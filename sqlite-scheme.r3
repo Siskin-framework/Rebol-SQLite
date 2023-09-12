@@ -13,6 +13,8 @@ try [system/modules/sqlite: none]
 ;; use current directory as a modules location
 system/options/modules: what-dir
 
+sqlite: import sqlite
+
 sys/make-scheme [
 	title: "SQLite database scheme"
 	name:  'sqlite
