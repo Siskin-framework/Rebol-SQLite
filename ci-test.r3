@@ -4,10 +4,13 @@ Rebol [
 ]
 
 print "Trying to import SQLite extension..."
-;; make sure that we load a fresh extension
-try [system/modules/sqlite: none]
-;; use current directory as a modules location
-system/options/modules: what-dir
+;; In the GitHub Actions, the built extension is copied into the current directory.
+unless empty? read %sqlite*.rebx [
+	;; make sure that we load a fresh extension
+	try [system/modules/sqlite: none]
+	;; use current directory as a modules location
+	system/options/modules: what-dir
+]
 
 sqlite: import 'sqlite
 

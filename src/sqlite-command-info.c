@@ -64,8 +64,8 @@ int cmd_sqlite_info(RXIFRM* frm, void* reb_ctx) {
 			SERIES_TEXT(str),
 			SERIES_REST(str),
 			"\n"
-			"Rebol-needed:  %u.%u.%u\n"
-			"Rebol-current: %u.%u.%u\n"
+			"Rebol-needed:   %u.%u.%u\n"
+			"Rebol-current:  %u.%u.%u\n"
 			"SQLite-version: %s\n"
 			"SQLite-memory:  %llu\n" // the number of bytes of memory currently outstanding (malloced but not freed)
 			"SQLite-mem-top: %llu\n",
