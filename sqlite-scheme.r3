@@ -8,10 +8,13 @@ Rebol [
 ]
 
 print "Trying to import SQLite extension..."
-;; make sure that we load a fresh extension
-try [system/modules/sqlite: none]
-;; use current directory as a modules location
-system/options/modules: what-dir
+;; In the GitHub Actions, the built extension is copied into the current directory.
+unless empty? read %sqlite*.rebx [
+	;; make sure that we load a fresh extension
+	try [system/modules/sqlite: none]
+	;; use current directory as a modules location
+	system/options/modules: what-dir
+]
 
 sqlite: import sqlite
 
@@ -70,7 +73,7 @@ sys/make-scheme [
 			port
 		]
 
-		;; WRITE is now just executes a query... no result is collected, but may be printed in console
+		;; WRITE now just executes a query... no result is collected, but may be printed in console
 		write: func[port [port!] query [string!]][
 			unless open? port [	cause-error 'Access 'not-open port/spec/ref ]
 			sqlite/exec port/state/db port/state/query: query
@@ -151,6 +154,22 @@ sys/make-scheme [
 
 ;------------------------------------------------------------------------------------------------
 ;print sqlite/info
+
+db: open/new sqlite:chinook.db
+
+probe read insert db {SELECT
+    InvoiceId,
+    BillingAddress,
+    date(InvoiceDate) InvoiceDate,
+    Total
+FROM
+    invoices
+WHERE
+    InvoiceDate NOT BETWEEN '2009-01-03' AND '2013-12-01'
+ORDER BY
+    InvoiceDate;
+}
+quit
 
 ;open sqlite:new.db              ;; would throw an error, if the file ./new.db does not exists
 ;open sqlite:/home/oldes/new.db  ;; used full path to the DB file

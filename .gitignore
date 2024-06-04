@@ -7,5 +7,6 @@
 !/*.nest
 !/sqlite
 !README.md
+!LICENSE
 !ci-test.r3
 !sqlite-scheme.r3

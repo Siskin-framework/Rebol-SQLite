@@ -1,6 +1,10 @@
-;~ Siskin project nest file ~;
+;-    .-.                                                                       
+;-   /'v'\   SISKIN-Builder project file                                        
+;-  (/uOu\)  https://github.com/Siskin-framework/Builder/                       
+;-===="="=======================================================================
+
 compiler: clang
-version: 3.44.2
+version: 3.46.0
 
 ;define: USE_TRACES
 
