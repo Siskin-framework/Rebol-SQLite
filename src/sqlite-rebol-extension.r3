@@ -76,13 +76,27 @@ commands: [
 reb-code: rejoin[
 	{REBOL [Title: "Rebol SQLite Extension"}
 	{ Name: sqlite Type: module Exports: []}
-	{ Version: 3.44.2.0}
+	{ Version: 3.46.0.0}
+	{ Needs:   3.13.1}
 	{ Author: Oldes}
-	{ Date: } now
-	{ License: Apache-2.0}
+	{ Date: } now/utc
+	{ License: MIT}
 	{ Url: https://github.com/Siskin-framework/Rebol-SQLite}
 	#"]"
 ]
+logo: next {
+//   ____  __   __        ______        __
+//  / __ \/ /__/ /__ ___ /_  __/__ ____/ /
+// / /_/ / / _  / -_|_-<_ / / / -_) __/ _ \
+// \____/_/\_,_/\__/___(@)_/  \__/\__/_// /
+//  ~~~ oldes.huhuman at gmail.com ~~~ /_/
+//
+// Project: Rebol/SQLite extension
+// SPDX-License-Identifier: MIT
+// =============================================================================
+// NOTE: auto-generated file, do not modify!
+}
+
 enu-commands:  "" ;; command name enumerations
 cmd-declares:  "" ;; command function declarations
 cmd-dispatch:  "" ;; command functionm dispatcher
@@ -115,11 +129,7 @@ foreach line split reb-code lf [
 ]
 
 ;-- C file templates -----------------------------------------------------------
-header: next {
-//
-// Rebol/SQLite extension
-// auto-generated file, do not modify! //
-
+header: {$logo
 #include "sqlite-command.h"
 
 #define MIN_REBOL_VER 3
@@ -145,10 +155,7 @@ typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 }
 ;;------------------------------------------------------------------------------
-ctable: next {
-//
-// auto-generated file, do not modify!
-//
+ctable: {$logo
 #include "sqlite-rebol-extension.h"
 MyCommandPointer Command[] = {
 $cmd-dispatch};

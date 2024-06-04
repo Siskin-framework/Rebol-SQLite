@@ -31,11 +31,8 @@ jobs:
     - name: Install Rebol for extension test
       uses: oldes/install-rebol@v3.17.0
 
-    - name: Test SQLite raw extension
+    - name: Test SQLite extension
       run:  ./rebol3 ci-test.r3
-
-    - name: Test SQLite scheme
-      run:  ./rebol3 sqlite-scheme.r3
 
     ###############################################################################
     # Collecting build artifacts...
@@ -77,11 +74,8 @@ jobs:
       - name: Install Rebol for extension test
         uses: oldes/install-rebol@v3.17.0
 
-      - name: Test SQLite raw extension
+      - name: Test SQLite extension
         run:  ./rebol3 ci-test.r3
-
-      - name: Test SQLite scheme
-        run:  ./rebol3 sqlite-scheme.r3
 
       - name: Compress 64bit Rebol SQLite extension
         run:  gzip -9 ./sqlite-linux-x64.rebx
@@ -109,11 +103,8 @@ jobs:
       - name: Install Rebol for extension test
         uses: oldes/install-rebol@v3.17.0
 
-      - name: Test SQLite raw extension
+      - name: Test SQLite extension
         run:  ./rebol3 ci-test.r3
-
-      - name: Test SQLite scheme
-        run:  ./rebol3 sqlite-scheme.r3
 
       - name: Compress 64bit Rebol SQLite extension
         run:  gzip -9 ./sqlite-macos-x64.rebx
