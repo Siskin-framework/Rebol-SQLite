@@ -17,10 +17,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Siskin Builder
-      uses: oldes/install-siskin@v0.13.0
+      uses: oldes/install-siskin@v0.17.0
 
     - name: Build 64bit Rebol SQLite extension
       run: ./siskin Rebol-SQLite.nest --msvc %sqlite-windows-x64
@@ -29,7 +29,7 @@ jobs:
       run:  COPY .\msvc\Release-x64\sqlite-windows-x64.dll sqlite-windows-x64.rebx
 
     - name: Install Rebol for extension test
-      uses: oldes/install-rebol@v3.14.0
+      uses: oldes/install-rebol@v3.17.0
 
     - name: Test SQLite raw extension
       run:  ./rebol3 ci-test.r3
@@ -55,10 +55,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Siskin Builder
-        uses: oldes/install-siskin@v0.13.0
+        uses: oldes/install-siskin@v0.17.0
 
 #      - name: Build 32bit Rebol SQLite extension
 #        run: ./siskin Rebol-SQLite.nest [%sqlite-linux-x86]
@@ -75,7 +75,7 @@ jobs:
         run:  mv ./build/sqlite-linux-x64.so sqlite-linux-x64.rebx
 
       - name: Install Rebol for extension test
-        uses: oldes/install-rebol@v3.14.0
+        uses: oldes/install-rebol@v3.17.0
 
       - name: Test SQLite raw extension
         run:  ./rebol3 ci-test.r3
@@ -95,10 +95,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Siskin Builder
-        uses: oldes/install-siskin@v0.13.0
+        uses: oldes/install-siskin@v0.17.0
 
       - name: Build 64bit Rebol SQLite extension
         run: ./siskin Rebol-SQLite.nest %sqlite-macos-x64
@@ -107,7 +107,7 @@ jobs:
         run:  mv ./build/sqlite-macos-x64.dylib sqlite-macos-x64.rebx
 
       - name: Install Rebol for extension test
-        uses: oldes/install-rebol@v3.14.0
+        uses: oldes/install-rebol@v3.17.0
 
       - name: Test SQLite raw extension
         run:  ./rebol3 ci-test.r3
