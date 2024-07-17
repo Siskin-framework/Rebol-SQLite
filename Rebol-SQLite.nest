@@ -10,7 +10,7 @@ version: 3.46.0
 
 #if Windows? [ define: TO_WINDOWS define: _CRT_SECURE_NO_WARNINGS upx: on]
 #if macOS?   [ define: TO_OSX     define: HAS_BOOL]
-#if Linux?   [ define: TO_LINUX ]
+#if Linux?   [ define: TO_LINUX   compiler: gcc]
 #if BSD?     [ compiler: clang  ]
 
 target-x86: [
