@@ -206,7 +206,7 @@ print-horizontal-line
 print as-yellow "SQLITE SCHEME TESTS"
 print-horizontal-line
 
-import 'sqlite-scheme
+import %sqlite-scheme.reb
 
 if exists? %chinook.db [
 	db: open/new sqlite:chinook.db
