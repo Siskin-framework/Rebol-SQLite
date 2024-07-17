@@ -23,10 +23,7 @@ jobs:
       uses: oldes/install-siskin@v0.17.0
 
     - name: Build 64bit Rebol SQLite extension
-      run: ./siskin Rebol-SQLite.nest --msvc %sqlite-windows-x64
-
-    - name: Prepare 64bit Rebol SQLite extension
-      run:  COPY .\msvc\Release-x64\sqlite-windows-x64.dll sqlite-windows-x64.rebx
+      run: ./siskin Rebol-SQLite.nest --msvc -o sqlite-windows-x64.rebx sqlite-x64
 
     - name: Install Rebol for extension test
       uses: oldes/install-rebol@v3.17.0
@@ -58,18 +55,10 @@ jobs:
         uses: oldes/install-siskin@v0.17.0
 
 #      - name: Build 32bit Rebol SQLite extension
-#        run: ./siskin Rebol-SQLite.nest [%sqlite-linux-x86]
+#        run: ./siskin Rebol-SQLite.nest -o sqlite-linux-x86.rebx sqlite-x86
 
       - name: Build 64bit Rebol SQLite extension
-        run: ./siskin Rebol-SQLite.nest %sqlite-linux-x64
-
-#      - name: Prepare 32bit Rebol SQLite extension
-#        run:  |
-#          mv .\build\sqlite-linux-x86.so sqlite-linux-x86.rebx
-#          gzip -9 ./sqlite-linux-x86.rebx
-
-      - name: Prepare 64bit Rebol SQLite extension
-        run:  mv ./build/sqlite-linux-x64.so sqlite-linux-x64.rebx
+        run: ./siskin Rebol-SQLite.nest -o sqlite-linux-x64.rebx sqlite-x64
 
       - name: Install Rebol for extension test
         uses: oldes/install-rebol@v3.17.0
@@ -95,10 +84,7 @@ jobs:
         uses: oldes/install-siskin@v0.17.0
 
       - name: Build 64bit Rebol SQLite extension
-        run: ./siskin Rebol-SQLite.nest %sqlite-macos-x64
-
-      - name: Prepare 64bit Rebol SQLite extension
-        run:  mv ./build/sqlite-macos-x64.dylib sqlite-macos-x64.rebx
+        run: ./siskin Rebol-SQLite.nest -o sqlite-macos-x64.rebx sqlite-x64
 
       - name: Install Rebol for extension test
         uses: oldes/install-rebol@v3.17.0

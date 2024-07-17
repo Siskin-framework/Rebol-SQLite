@@ -4,7 +4,10 @@ Rebol [
 	note:  {This is just an initial proof of concept}
 	version: 0.1.0
 	author: "Oldes"
-	needs:   3.13.1 ;; using system/options/modules as extension location
+	needs:   [
+		3.13.1 ;; using system/options/modules as extension location
+		sqlite
+	]
 ]
 
 sys/make-scheme [

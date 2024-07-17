@@ -11,6 +11,7 @@ version: 3.46.0
 #if Windows? [ define: TO_WINDOWS define: _CRT_SECURE_NO_WARNINGS upx: on]
 #if macOS?   [ define: TO_OSX     define: HAS_BOOL]
 #if Linux?   [ define: TO_LINUX ]
+#if BSD?     [ compiler: clang  ]
 
 target-x86: [
 	arch: x86
@@ -25,13 +26,15 @@ target-x64: [
 	]
 	#if Windows? [ defines: [ TO_WIN32_X64 _WIN32 ] ]
 	#if Linux?   [ defines: [ TO_LINUX_X64        ] ]
-	#if macOS?   [ defines: [ TO_OSX_X64          ] flags: ["-arch x86_64"] ]
+	#if macOS?   [ defines: [ TO_OSX_X64          ] flags: "-arch x86_64" ]
 ]
 
 target-arm64: [
 	arch: arm64
-	;flags: ["-arch arm64"]
-	flags: "-target arm64-apple-darwin"
+	;flags: "-arch arm64"
+	#if macOS? [
+		flags: "-target arm64-apple-darwin"
+	]
 	define: _FILE_OFFSET_BITS=64
 	define: __LP64__ ; has long (integer) 64 bits
 	define: __arm64__
@@ -75,53 +78,20 @@ r3-extension: [
 	do %src/sqlite-rebol-extension.r3 
 ]
 
-eggs: only [
-	#if Windows? [
-		"Rebol sqlite extension: win32_x86" [
-			name: %sqlite-windows-x86
-			:r3-extension
-			:target-x86
-		]
-		"Rebol sqlite extension: win32_x64" [
-			name: %sqlite-windows-x64
-			:r3-extension
-			:target-x64
-		]
+eggs: [
+	"Rebol sqlite extension: x86" [
+		name: %sqlite-x86
+		:r3-extension
+		:target-x86
 	]
-	#if macOS? [
-		"Rebol sqlite extension: osx_x64" [
-			name: %sqlite-macos-x64
-			:r3-extension
-			:target-x64
-		]
-		"Rebol sqlite extension: osx_arm64" [
-			name: %sqlite-macos-arm64
-			:r3-extension
-			:target-arm64
-		]
+	"Rebol sqlite extension: x64" [
+		name: %sqlite-x64
+		:r3-extension
+		:target-x64
 	]
-	#if Linux? [
-		"Rebol sqlite extension: linux_x86" [
-			name: %sqlite-linux-x86
-			:r3-extension
-			:target-x86
-		]
-		"Rebol sqlite extension: linux_x64" [
-			name: %sqlite-linux-x64
-			:r3-extension
-			:target-x64
-		]
-	]
-	#if (system/platform = 'Haiku) [
-		"Rebol sqlite extension: haiku_x86" [
-			name: %sqlite-haiku-x86.rebx
-			:r3-extension
-			:target-x86
-		]
-		"Rebol sqlite extension: haiku_x64" [
-			name: %sqlite-haiku-x64.rebx
-			:r3-extension
-			:target-x64
-		]
+	"Rebol sqlite extension: arm64" [
+		name: %sqlite-arm64
+		:r3-extension
+		:target-arm64
 	]
 ]

@@ -1,6 +1,13 @@
+//   ____  __   __        ______        __
+//  / __ \/ /__/ /__ ___ /_  __/__ ____/ /
+// / /_/ / / _  / -_|_-<_ / / / -_) __/ _ \
+// \____/_/\_,_/\__/___(@)_/  \__/\__/_// /
+//  ~~~ oldes.huhuman at gmail.com ~~~ /_/
 //
-// Rebol/SQLite extension
-// auto-generated file, do not modify! //
+// Project: Rebol/SQLite extension
+// SPDX-License-Identifier: MIT
+// =============================================================================
+// NOTE: auto-generated file, do not modify!
 
 #include "sqlite-command.h"
 
@@ -52,7 +59,7 @@ int cmd_sqlite_shutdown(RXIFRM *frm, void *ctx);
 typedef int (*MyCommandPointer)(RXIFRM *frm, void *ctx);
 
 #define EXT_SQLITE_INIT_CODE \
-	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.44.2.0 Author: Oldes Date: 4-Jun-2024/14:25:37+2:00 License: Apache-2.0 Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
+	"REBOL [Title: \"Rebol SQLite Extension\" Name: sqlite Type: module Exports: [] Version: 3.46.0.0 Needs:   3.13.1 Author: Oldes Date: 17-Jul-2024/20:51:34 License: MIT Url: https://github.com/Siskin-framework/Rebol-SQLite]\n"\
 	"info: command [\"Returns info about SQLite extension library\" /of handle [handle!] \"SQLite Extension handle\"]\n"\
 	"open: command [\"Opens a new database connection\" file [file!]]\n"\
 	"exec: command [{Runs zero or more semicolon-separate SQL statements} db [handle!] \"sqlite-db\" sql [string!] \"statements\"]\n"\
