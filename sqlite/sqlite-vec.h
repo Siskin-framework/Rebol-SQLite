@@ -7,7 +7,7 @@
 #include "sqlite3.h"
 #endif
 
-#ifdef __OpenBSD__
+#ifdef __FreeBSD__
 #include <sys/types.h>
 #endif
 
