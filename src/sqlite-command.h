@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "sqlite3.h"
+#include "sqlite-vec.h"
 #include "rebol-extension.h"
 
 #define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))

@@ -27,12 +27,13 @@ int cmd_sqlite_open(RXIFRM* frm, void* reb_ctx) {
 	}
 	ctx = (SQLITE_CONTEXT*)hob->data;
 
+	// Initialize embedded sqlite-vec extension.
+	// (Maybe it should be done on the request only...)
+	rc = sqlite3_auto_extension((void(*)(void))sqlite3_vec_init);
+	if(rc != SQLITE_OK) goto error;
+
 	rc = sqlite3_open(SERIES_TEXT(filename), &ctx->db);
-	if(rc != SQLITE_OK) {
-		snprintf((char*)error_buffer, 254,"[SQLITE] %s", sqlite3_errstr(rc));
-		RXA_SERIES(frm, 1) = (void*)error_buffer;
-		return RXR_ERROR;
-	}
+	if(rc != SQLITE_OK) goto error;
 
 	RXA_HANDLE(frm, 1) = hob;
 	RXA_HANDLE_TYPE(frm, 1) = hob->sym;
@@ -40,4 +41,10 @@ int cmd_sqlite_open(RXIFRM* frm, void* reb_ctx) {
 	RXA_TYPE(frm, 1) = RXT_HANDLE;
 
 	return RXR_VALUE;
+
+error:
+	snprintf((char*)error_buffer, 254,"[SQLITE] %s", sqlite3_errstr(rc));
+	RXA_SERIES(frm, 1) = (void*)error_buffer;
+	return RXR_ERROR;
+
 }
