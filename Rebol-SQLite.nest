@@ -3,6 +3,8 @@
 ;-  (/uOu\)  https://github.com/Siskin-framework/Builder/                       
 ;-===="="=======================================================================
 
+;github: @sqlite-vec
+
 compiler: clang
 version: 3.51.2
 
