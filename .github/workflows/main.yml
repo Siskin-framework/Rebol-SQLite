@@ -33,9 +33,9 @@ jobs:
 
     ###############################################################################
     # Collecting build artifacts...
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
-        name: Rebol-SQLite-CI-${{github.run_id}}
+        name: Rebol-SQLite-CI-Windows-${{github.run_id}}
         path: ./sqlite-windows-x64.rebx
 
   linux:
@@ -69,9 +69,9 @@ jobs:
       - name: Compress 64bit Rebol SQLite extension
         run:  gzip -9 ./sqlite-linux-x64.rebx
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: Rebol-SQLite-CI-${{github.run_id}}
+          name: Rebol-SQLite-CI-Linux-${{github.run_id}}
           path: ./sqlite-linux-*
 
   macos:
@@ -95,7 +95,7 @@ jobs:
       - name: Compress 64bit Rebol SQLite extension
         run:  gzip -9 ./sqlite-macos-x64.rebx
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: Rebol-SQLite-CI-${{github.run_id}}
+          name: Rebol-SQLite-CI-macOS-${{github.run_id}}
           path: ./sqlite-macos-*
