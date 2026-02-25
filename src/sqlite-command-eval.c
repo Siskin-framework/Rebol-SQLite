@@ -51,6 +51,11 @@ int bind_parameters(sqlite3_stmt *stmt, REBSER *params, REBCNT *index) {
 				rc = sqlite3_bind_double(stmt, col, arg.dec64);
 				break;
 			case RXT_STRING:
+			case RXT_FILE:
+			case RXT_EMAIL:
+			case RXT_REF:
+			case RXT_URL:
+			case RXT_TAG:
 				// Make sure to convert unicode string to UTF-8
 				ser = (REBSER*)arg.series;
 				if (SERIES_WIDE(ser) > 1) {

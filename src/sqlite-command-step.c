@@ -57,6 +57,11 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					rc = sqlite3_bind_double(stmt, col+1, arg.dec64);
 					break;
 				case RXT_STRING:
+				case RXT_FILE:
+				case RXT_EMAIL:
+				case RXT_REF:
+				case RXT_URL:
+				case RXT_TAG:
 					// Make sure to convert unicode string to UTF-8
 					str = (REBSER*)arg.series;
 					if (SERIES_WIDE(str) > 1) {
