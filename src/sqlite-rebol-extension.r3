@@ -76,7 +76,7 @@ commands: [
 reb-code: rejoin[
 	{REBOL [Title: "Rebol SQLite Extension"}
 	{ Name: sqlite Type: module Exports: []}
-	{ Version: 3.46.0.0}
+	{ Version: 3.51.2.1}
 	{ Needs:   3.13.1}
 	{ Author: Oldes}
 	{ Date: } now/utc

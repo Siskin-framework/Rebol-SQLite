@@ -61,14 +61,23 @@ int cmd_sqlite_step(RXIFRM* frm, void* reb_ctx) {
 					str = (REBSER*)arg.series;
 					if (SERIES_WIDE(str) > 1) {
 						str = RL_ENCODE_UTF8_STRING(SERIES_DATA(str), SERIES_TAIL(str), TRUE, FALSE);
+						arg.index = 0;
 					}
-					rc = sqlite3_bind_text(stmt, col+1, SERIES_TEXT(str), -1, SQLITE_TRANSIENT);
+					rc = sqlite3_bind_text(stmt, col+1, SERIES_SKIP(str, arg.index), SERIES_TAIL(str)-arg.index, SQLITE_TRANSIENT);
 					break;
 				case RXT_NONE:
 					rc = sqlite3_bind_null(stmt, col+1);
 					break;
 				case RXT_LOGIC:
 					rc = sqlite3_bind_int(stmt, col+1, arg.int32a);
+					break;
+				case RXT_BINARY:
+					str = (REBSER*)arg.series;
+					rc = sqlite3_bind_blob(stmt, col+1, SERIES_SKIP(str, arg.index), SERIES_TAIL(str)-arg.index, SQLITE_TRANSIENT);
+					break;
+				case RXT_VECTOR:
+					str = (REBSER*)arg.series;
+					rc = sqlite3_bind_blob(stmt, col+1, SERIES_DATA(str), SERIES_TAIL(str) * VECT_BYTE_SIZE(VECT_TYPE(str)), SQLITE_TRANSIENT);
 					break;
 			}
 			if (rc < 0) {

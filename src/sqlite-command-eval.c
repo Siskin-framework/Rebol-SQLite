@@ -16,7 +16,7 @@
 int bind_parameters(sqlite3_stmt *stmt, REBSER *params, REBCNT *index) {
 	REBINT count, col, rc, type ;
 	RXIARG   arg = {0};
-	REBSER  *str;
+	REBSER  *ser;
 	REBCNT   idx = *index;
 	REBOOL   blockData = FALSE;
 
@@ -52,17 +52,26 @@ int bind_parameters(sqlite3_stmt *stmt, REBSER *params, REBCNT *index) {
 				break;
 			case RXT_STRING:
 				// Make sure to convert unicode string to UTF-8
-				str = (REBSER*)arg.series;
-				if (SERIES_WIDE(str) > 1) {
-					str = RL_ENCODE_UTF8_STRING(SERIES_DATA(str), SERIES_TAIL(str), TRUE, FALSE);
+				ser = (REBSER*)arg.series;
+				if (SERIES_WIDE(ser) > 1) {
+					ser = RL_ENCODE_UTF8_STRING(SERIES_DATA(ser), SERIES_TAIL(ser), TRUE, FALSE);
+					arg.index = 0;
 				}
-				rc = sqlite3_bind_text(stmt, col, SERIES_TEXT(str), -1, SQLITE_TRANSIENT);
+				rc = sqlite3_bind_text(stmt, col, SERIES_SKIP(ser, arg.index),  SERIES_TAIL(ser)-arg.index, SQLITE_TRANSIENT);
 				break;
 			case RXT_NONE:
 				rc = sqlite3_bind_null(stmt, col);
 				break;
 			case RXT_LOGIC:
 				rc = sqlite3_bind_int(stmt, col, arg.int32a);
+				break;
+			case RXT_BINARY:
+				ser = (REBSER*)arg.series;
+				rc = sqlite3_bind_blob(stmt, col, SERIES_SKIP(ser, arg.index), SERIES_TAIL(ser)-arg.index, SQLITE_TRANSIENT);
+				break;
+			case RXT_VECTOR:
+				ser = (REBSER*)arg.series;
+				rc = sqlite3_bind_blob(stmt, col, SERIES_DATA(ser), SERIES_TAIL(ser) * VECT_BYTE_SIZE(VECT_TYPE(ser)), SQLITE_TRANSIENT);
 				break;
 			case RXT_END:
 				rc = SQLITE_OK;
