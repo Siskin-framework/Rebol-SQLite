@@ -10,3 +10,4 @@
 !LICENSE
 !ci-test.r3
 !sqlite-scheme.reb
+*/gen-*

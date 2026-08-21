@@ -4,9 +4,10 @@
 ;-===="="=======================================================================
 
 ;github: @sqlite-vec
+github: asg017/sqlite-vec
 
 compiler: clang
-version: 3.51.2
+version: 3.53.4
 
 ;define: USE_TRACES
 
@@ -44,27 +45,13 @@ target-arm64: [
 ]
 
 r3-extension: [
-	clean: %src/sqlite-rebol-extension.c
+	clean: %src/sqlite.c
 	files: only [
 		%sqlite/sqlite3.c
 		%sqlite/sqlite-vec.c
-		%src/sqlite-rebol-extension.c
-		%src/sqlite-commands-table.c
-		%src/sqlite-command.c
-		%src/sqlite-command-info.c
-		%src/sqlite-command-open.c
-		%src/sqlite-command-close.c
-		%src/sqlite-command-eval.c
-		%src/sqlite-command-exec.c
-		%src/sqlite-command-finalize.c
-		%src/sqlite-command-prepare.c
-		%src/sqlite-command-reset.c
-		%src/sqlite-command-step.c
-		%src/sqlite-command-trace.c
-		%src/sqlite-command-columns.c
-		%src/sqlite-command-initialize.c
-		%src/sqlite-command-shutdown.c
-		%src/sqlite-command-last-insert-id.c
+		%src/sqlite.c
+		%src/sqlite-commands.c
+		%src/gen-sqlite.c
 	]
 	include: [
 		%src/
@@ -78,7 +65,8 @@ r3-extension: [
 		cflags: [-fPIC -pthread ]
 		;libraries: [%pthread]
 	]
-	do %src/sqlite-rebol-extension.r3 
+	define: REB_EXT
+	do %make-extension.r3 "${NEST_ROOT}/src/sqlite.reb"
 ]
 
 eggs: [

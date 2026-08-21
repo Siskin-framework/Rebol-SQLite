@@ -1,18 +1,20 @@
 ////////////////////////////////////////////////////////////////////////
 // File: rebol-extension.h
 // Home: https://github.com/Oldes/Rebol3/
-// Date: 16-Jan-2023/14:09:33
+// Date: 21-Aug-2026/9:45:01
 // Note: This file is amalgamated from these sources:
 //
 //       reb-c.h
-//       reb-ext.h
 //       reb-args.h
+//       reb-ext.h
+//       reb-ext-handler.h
 //       reb-device.h
 //       reb-file.h
 //       reb-filereq.h
 //       reb-event.h
 //       reb-evtypes.h
 //       reb-lib.h
+//       reb-ext-common.h
 //
 ////////////////////////////////////////////////////////////////////////
 
@@ -22,6 +24,7 @@
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2024 Rebol Open Source Developers
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,10 +70,6 @@
 **      It is a critical part of its definition.
 **
 ***********************************************************************/
-
-#if defined(__cplusplus) && __cplusplus >= 201103L
-#include <type_traits> // used in CASTING MACROS
-#endif
 
 #ifdef __OBJC__
 #define HAS_BOOL // don't redefine BOOL in objective-c code
@@ -182,6 +181,29 @@ typedef struct sInt64 {
 } I64;
 #pragma pack()
 
+
+/* ---------------------------------------------------------------------
+	The following 4 definitions are compiler-specific.
+	The C standard does not guarantee that wchar_t has at least
+	16 bits, so wchar_t is no less portable than unsigned short!
+	All should be unsigned values to avoid sign extension during
+	bit mask & shift operations.
+------------------------------------------------------------------------ */
+
+typedef unsigned long	UTF32;	/* at least 32 bits */
+typedef unsigned short	UTF16;	/* at least 16 bits */
+typedef unsigned char	UTF8;	/* typically 8 bits */
+typedef unsigned char	Boolean; /* 0 or 1 */
+
+/* Some fundamental constants */
+#define UNI_ERROR (UTF32)0xFFFFFFFF
+#define UNI_REPLACEMENT_CHAR (UTF32)0x0000FFFD
+#define UNI_MAX_BMP (UTF32)0x0000FFFF
+#define UNI_MAX_UTF16 (UTF32)0x0010FFFF
+#define UNI_MAX_UTF32 (UTF32)0x7FFFFFFF
+#define UNI_MAX_LEGAL_UTF32 (UTF32)0x0010FFFF
+
+
 /***********************************************************************
 **
 **  REBOL Code Types
@@ -190,6 +212,8 @@ typedef struct sInt64 {
 
 typedef i32				REBINT;     // 32 bit (64 bit defined below)
 typedef u32				REBCNT;     // 32 bit (counting number)
+typedef u32             REBLEN;     // 32 bit series length/index - used instead of size_t
+typedef u32             REBU32;		// 32 bit Unicode
 typedef i64				REBI64;     // 64 bit integer
 typedef u64				REBU64;     // 64 bit unsigned integer
 typedef i8				REBOOL;     // 8  bit flag (for struct usage)
@@ -199,6 +223,8 @@ typedef double			REBDEC;     // 64 bit decimal
 
 typedef unsigned char	REBYTE;     // unsigned byte data
 typedef u16				REBUNI;     // unicode char
+typedef u16				REBU16;     // 16bit UCS2 codepoint
+typedef u32 REBUTF;
 
 // REBCHR - only to refer to OS char strings (not internal strings)
 #ifdef OS_WIDE_CHAR
@@ -207,10 +233,13 @@ typedef REBUNI          REBCHR;
 typedef REBYTE          REBCHR;
 #endif
 
-#define MAX_UNI ((1 << (8*sizeof(REBUNI))) - 1)
+#define AS_REBLEN(v)  (REBLEN)(v)  // used to silence conversion from size_t warnings
+#define AS_INT(v)        (int)(v)  // used to silence conversion from size_t warnings
 
 #define MIN_D64 ((double)-9.2233720368547758e18)
 #define MAX_D64 ((double) 9.2233720368547758e18)
+#define MAX_REBLEN 0xFFFFFFFF
+#define MAX_UNI 0x10FFFF
 
 // Useful char constants:
 enum {
@@ -270,14 +299,64 @@ typedef void(*CFUNC)(void *);
 **
 ***********************************************************************/
 
+#ifdef __has_builtin
+#  define HAS_BUILTIN(x) __has_builtin(x)
+#else
+#  define HAS_BUILTIN(x) 0
+#endif
+
+#if defined(_MSC_VER)
+# define FORCE_INLINE    __forceinline
+# include <stdlib.h>
+# define ROTL32(x,y) _rotl(x,y)
+# define ROTL64(x,y) _rotl64(x,y)
+# define BIG_CONSTANT(x) (x)
+// Other compilers..
+#else   // defined(_MSC_VER)
+# define FORCE_INLINE inline __attribute__((always_inline))
+# if HAS_BUILTIN(__builtin_rotateleft32) && HAS_BUILTIN(__builtin_rotateleft64)
+#  define ROTL32(x,y) __builtin_rotateleft32(x,y)
+#  define ROTL64(x,y) __builtin_rotateleft64(x,y)
+# else
+    FORCE_INLINE uint32_t rotl32(uint32_t x, int8_t r)
+    {
+        return (x << r) | (x >> (32 - r));
+    }
+    FORCE_INLINE uint64_t rotl64(uint64_t x, int8_t r)
+    {
+        return (x << r) | (x >> (64 - r));
+    }
+#  define ROTL32(x,y) rotl32(x,y)
+#  define ROTL64(x,y) rotl64(x,y)
+# endif
+# define BIG_CONSTANT(x) (x##LLU)
+#endif // !defined(_MSC_VER)
+
+
+#if defined(_MSC_VER)
+#define RESTRICT __restrict
+#elif defined(__clang__) || defined(__GNUC__)
+#define RESTRICT __restrict__
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define RESTRICT __restrict
+#else
+#define RESTRICT
+#endif
+
 #define UNUSED(x) (void)x;
 
-#define FLAGIT(f)           (1<<(f))
-#define GET_FLAG(v,f)       (((v) & (1<<(f))) != 0)
-#define GET_FLAGS(v,f,g)    (((v) & ((1<<(f)) | (1<<(g)))) != 0)
-#define SET_FLAG(v,f)       ((v) |= (1<<(f)))
-#define CLR_FLAG(v,f)       ((v) &= ~(1<<(f)))
-#define CLR_FLAGS(v,f,g)    ((v) &= ~((1<<(f)) | (1<<(g))))
+// Check a condition e at compile time. If the condition is false, it will
+// result in a compilation error because it attempts to create an array 
+// with a negative size, which is not allowed in C.
+#define STATIC_ASSERT(e) do {(void)sizeof(char[1 - 2*!(e)]);} while(0)
+
+#define FLAGIT(f)           (1u<<(f))
+#define GET_FLAG(v,f)       (((v) & FLAGIT(f)) != 0)
+#define GET_FLAGS(v,f,g)    (((v) & (FLAGIT(f) | FLAGIT(g))) != 0)
+#define SET_FLAG(v,f)       ((v) |= FLAGIT(f))
+#define CLR_FLAG(v,f)       ((v) &= ~FLAGIT(f))
+#define CLR_FLAGS(v,f,g)    ((v) &= ~(FLAGIT(f) | FLAGIT(g)))
+#define ASSIGN_FLAG(f, b, set) ((set) ? SET_FLAG(f, b) : CLR_FLAG(f, b))
 
 #ifndef MIN
 #ifdef min
@@ -291,6 +370,7 @@ typedef void(*CFUNC)(void *);
 
 // Memory related functions:
 #define MAKE_MEM(n)     malloc(n)
+#define MAKE_CLEAR_MEM(n)     calloc(n, 1)
 #define MAKE_NEW(s)     MAKE_MEM(sizeof(s))
 #define FREE_MEM(m)     free(m)
 #define CLEAR(m, s)     memset((void*)(m), 0, s);
@@ -434,105 +514,51 @@ typedef void(*CFUNC)(void *);
     (p)[7] = (u8)((v) >> 56) & 0xff;  \
   } while (0)
 
-
-
-//
-// CASTING MACROS
-//
-// The following code and explanation is from "Casts for the Masses (in C)":
-//
-// http://blog.hostilefork.com/c-casts-for-the-masses/
-//
-// But debug builds don't inline functions--not even no-op ones whose sole
-// purpose is static analysis.  This means the cast macros add a headache when
-// stepping through the debugger, and also they consume a measurable amount
-// of runtime.  Hence we sacrifice cast checking in the debug builds...and the
-// release C++ builds on Travis are relied upon to do the proper optimizations
-// as well as report any static analysis errors.
-//
-
-#if !defined(__cplusplus) || !defined(NDEBUG)
-    /* These macros are easier-to-spot variants of the parentheses cast.
-     * The 'm_cast' is when getting [M]utablity on a const is okay (RARELY!)
-     * Plain 'cast' can do everything else (except remove volatile)
-     * The 'c_cast' helper ensures you're ONLY adding [C]onst to a value
-     */
-    #define m_cast(t,v)     ((t)(v))
-    #define cast(t,v)       ((t)(v))
-    #define c_cast(t,v)     ((t)(v))
-    /*
-     * Q: Why divide roles?  A: Frequently, input to cast is const but you
-     * "just forget" to include const in the result type, gaining mutable
-     * access.  Stray writes to that can cause even time-traveling bugs, with
-     * effects *before* that write is made...due to "undefined behavior".
-     */
-#elif defined(__cplusplus) /* for gcc -Wundef */ && (__cplusplus < 201103L)
-    /* Well-intentioned macros aside, C has no way to enforce that you can't
-     * cast away a const without m_cast. C++98 builds can do that, at least:
-     */
-    #define m_cast(t,v)     const_cast<t>(v)
-    #define cast(t,v)       ((t)(v))
-    #define c_cast(t,v)     const_cast<t>(v)
-#else
-    /* __cplusplus >= 201103L has C++11's type_traits, where we get some
-     * actual power.  cast becomes a reinterpret_cast for pointers and a
-     * static_cast otherwise.  We ensure c_cast added a const and m_cast
-     * removed one, and that neither affected volatility.
-     */
-    template<typename T, typename V>
-    T m_cast_helper(V v) {
-        static_assert(!std::is_const<T>::value,
-            "invalid m_cast() - requested a const type for output result");
-        static_assert(std::is_volatile<T>::value == std::is_volatile<V>::value,
-            "invalid m_cast() - input and output have mismatched volatility");
-        return const_cast<T>(v);
-    }
-    /* reinterpret_cast for pointer to pointer casting (non-class source)*/
-    template<typename T, typename V,
-        typename std::enable_if<
-            !std::is_class<V>::value
-            && (std::is_pointer<V>::value || std::is_pointer<T>::value)
-        >::type* = nullptr>
-                T cast_helper(V v) { return reinterpret_cast<T>(v); }
-    /* static_cast for non-pointer to non-pointer casting (non-class source) */
-    template<typename T, typename V,
-        typename std::enable_if<
-            !std::is_class<V>::value
-            && (!std::is_pointer<V>::value && !std::is_pointer<T>::value)
-        >::type* = nullptr>
-                T cast_helper(V v) { return static_cast<T>(v); }
-    /* use static_cast on all classes, to go through their cast operators */
-    template<typename T, typename V,
-        typename std::enable_if<
-            std::is_class<V>::value
-        >::type* = nullptr>
-                T cast_helper(V v) { return static_cast<T>(v); }
-    template<typename T, typename V>
-    T c_cast_helper(V v) {
-        static_assert(!std::is_const<T>::value,
-            "invalid c_cast() - did not request const type for output result");
-        static_assert(std::is_volatile<T>::value == std::is_volatile<V>::value,
-            "invalid c_cast() - input and output have mismatched volatility");
-        return const_cast<T>(v);
-    }
-    #define m_cast(t, v)    m_cast_helper<t>(v)
-    #define cast(t, v)      cast_helper<t>(v)
-    #define c_cast(t, v)    c_cast_helper<t>(v)
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+#if !defined(GCC_VERSION_AT_LEAST)
+# ifdef __GNUC__
+#  define GCC_VERSION_AT_LEAST(m, n) \
+                (__GNUC__ > (m) || (__GNUC__ == (m) && __GNUC_MINOR__ >= (n)))
+# else
+#  define GCC_VERSION_AT_LEAST(m, n) 0
+# endif
 #endif
 
+//! Function attribute used by functions that never return (that terminate the process).
+#if !defined(REB_NORETURN)
+# if defined(__clang__) || GCC_VERSION_AT_LEAST(2, 5)
+#  define REB_NORETURN __attribute__ ((noreturn))
+# elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#  define REB_NORETURN _Noreturn
+# elif defined(__TINYC__)
+#  define REB_NORETURN  /* _Noreturn unreliable [1] */
+# elif defined(_MSC_VER)
+#  define REB_NORETURN __declspec(noreturn)
+# else
+#  define REB_NORETURN
+# endif
+#endif
+#if !defined(DEAD_END)
+# if __has_builtin(__builtin_unreachable) || GCC_VERSION_AT_LEAST(4, 5)
+#  define DEAD_END __builtin_unreachable()
+# elif defined(_MSC_VER)
+#  define DEAD_END __assume(0)
+# else
+#  define DEAD_END abort()
+# endif
+#endif
 
-//=//// BYTE STRINGS VS UNENCODED CHARACTER STRINGS ///////////////////////=//
-//
-// Use these when you semantically are talking about unsigned characters as
-// bytes.  For instance: if you want to count unencoded chars in 'char *' us
-// strlen(), and the reader will know that is a count of letters.  If you have
-// something like UTF-8 with more than one byte per character, use LEN_BYTES.
-// The casting macros are derived from "Casts for the Masses (in C)":
-//
-// http://blog.hostilefork.com/c-casts-for-the-masses/
-//
-// For APPEND_BYTES_LIMIT, m is the max-size allocated for d (dest)
-//
+/* These macros are easier-to-spot variants of the parentheses cast.
+ * The 'm_cast' is when getting [M]utablity on a const is okay (RARELY!)
+ * Plain 'cast' can do everything else (except remove volatile)
+ * The 'c_cast' helper ensures you're ONLY adding [C]onst to a value
+ */
+#define m_cast(t,v)     ((t)(v))
+#define cast(t,v)       ((t)(v))
+#define c_cast(t,v)     ((t)(v))
+
 #include <string.h> // for strlen() etc, but also defines `size_t`
 #define strsize strlen
 #if defined(NDEBUG)
@@ -546,7 +572,7 @@ typedef void(*CFUNC)(void *);
     #define cb_cast(s)      ((const REBYTE *)(s))
 
     #define LEN_BYTES(s) \
-        strlen((const char*)(s))
+        (REBLEN)strlen((const char*)(s))
 
     #define COPY_BYTES(d,s,n) \
         strncpy((char*)(d), (const char*)(s), (n))
@@ -587,8 +613,8 @@ typedef void(*CFUNC)(void *);
         return b_cast(strncpy(s_cast(dest), cs_cast(src), count));
     }
 
-    inline static size_t LEN_BYTES(const REBYTE *str)
-        { return strlen(cs_cast(str)); }
+    inline static REBLEN LEN_BYTES(const REBYTE *str)
+        { return (REBLEN)strlen(cs_cast(str)); }
 
     inline static int CMP_BYTES(
         const REBYTE *lhs, const REBYTE *rhs
@@ -609,12 +635,117 @@ typedef void(*CFUNC)(void *);
 #endif // REB_C_H
 
 
+// File: reb-args.h
+/***********************************************************************
+**
+**  REBOL [R3] Language Interpreter and Run-time Environment
+**
+**  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2026 Rebol Open Source Contributors
+**  REBOL is a trademark of REBOL Technologies
+**
+**  Licensed under the Apache License, Version 2.0 (the "License");
+**  you may not use this file except in compliance with the License.
+**  You may obtain a copy of the License at
+**
+**  http://www.apache.org/licenses/LICENSE-2.0
+**
+**  Unless required by applicable law or agreed to in writing, software
+**  distributed under the License is distributed on an "AS IS" BASIS,
+**  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+**  See the License for the specific language governing permissions and
+**  limitations under the License.
+**
+************************************************************************
+**
+**  Summary: Program startup arguments
+**  Module:  reb-args.h
+**  Author:  Carl Sassenrath
+**  Notes:
+**     Arg struct is used by R3 lib, so must not be modified.
+**
+***********************************************************************/
+
+// REBOL startup option structure:
+typedef struct rebol_args {
+	REBCNT options;
+	REBYTE *script;
+	REBYTE *do_arg;
+	REBYTE *version;
+	REBYTE *debug;
+	REBYTE *import;
+	REBYTE *secure;
+	REBYTE *boot;
+	REBYTE *exe_path;
+	REBYTE *current_dir;
+	REBYTE *args;         // value for the --args option
+	REBCNT  argc;         // unprocessed argument count
+	REBCHR **argv;        // unprocessed arguments
+} REBARGS;
+
+// REBOL arg option flags:
+// Must stay matched to system/catalog/boot-flags.
+enum arg_opts {
+	ROF_EXT,
+
+	ROF_SCRIPT,
+	ROF_ARGS,
+	ROF_DO,
+	ROF_IMPORT,
+	ROF_VERSION,
+	ROF_DEBUG,
+	ROF_SECURE,
+
+	ROF_HELP,
+	ROF_VERS,
+	ROF_QUIET,
+	ROF_VERBOSE,
+	ROF_SECURE_MIN,
+	ROF_SECURE_MAX,
+	ROF_TRACE,
+	ROF_HALT,
+	ROF_CGI,
+	ROF_BOOT,
+	ROF_NO_WINDOW,
+	ROF_NO_COLOR,
+	ROF_LEGACY_REPL,
+
+	ROF_IGNORE, // not an option
+};
+
+#define RO_EXT         (1<<ROF_EXT)
+#define RO_HELP        (1<<ROF_HELP)
+#define RO_IMPORT      (1<<ROF_IMPORT)
+#define RO_CGI         (1<<ROF_CGI)
+#define RO_ARGS        (1<<ROF_ARGS)
+#define RO_DO          (1<<ROF_DO)
+#define RO_DEBUG       (1<<ROF_DEBUG)
+#define RO_SECURE_MIN  (1<<ROF_SECURE_MIN)
+#define RO_SECURE_MAX  (1<<ROF_SECURE_MAX)
+#define RO_QUIET       (1<<ROF_QUIET)
+#define RO_SCRIPT      (1<<ROF_SCRIPT)
+#define RO_SECURE      (1<<ROF_SECURE)
+#define RO_TRACE       (1<<ROF_TRACE)
+#define RO_VERSION     (1<<ROF_VERSION)
+#define RO_VERS        (1<<ROF_VERS)
+#define RO_VERBOSE     (1<<ROF_VERBOSE)
+#define RO_HALT        (1<<ROF_HALT)
+#define RO_BOOT        (1<<ROF_BOOT)
+#define RO_NO_WINDOW   (1<<ROF_NO_WINDOW)
+#define RO_NO_COLOR    (1<<ROF_NO_COLOR)
+#define RO_LEGACY_REPL (1<<ROF_LEGACY_REPL)
+
+#define RO_IGNORE      (1<<ROF_IGNORE)
+
+
+
 // File: reb-ext.h
 /***********************************************************************
 **
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2026 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -633,7 +764,7 @@ typedef void(*CFUNC)(void *);
 **
 **  Summary: Extensions Include File
 **  Module:  reb-ext.h
-**  Author:  Carl Sassenrath
+**  Author:  Carl Sassenrath, Oldes
 **  Notes:
 **
 ***********************************************************************/
@@ -644,6 +775,7 @@ typedef void(*CFUNC)(void *);
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2026 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -678,6 +810,32 @@ typedef void(*CFUNC)(void *);
 #define OS_EPERM  -3
 #define OS_ESRCH  -4
 
+
+#ifdef ENDIAN_LITTLE
+#define OS_LITTLE_ENDIAN TRUE 
+#define WRITE_BE_2(cp, bp)  cp[0] = bp[1]; cp[1] = bp[0];
+#define WRITE_BE_3(cp, bp)  cp[0] = bp[2]; cp[1] = bp[1]; cp[2] = bp[0];
+#define WRITE_BE_4(cp, bp)  cp[0] = bp[3]; cp[1] = bp[2]; cp[2] = bp[1]; cp[3] = bp[0];
+#define WRITE_BE_8(cp, bp)  cp[0] = bp[7]; cp[1] = bp[6]; cp[2] = bp[5]; cp[3] = bp[4]; \
+							cp[4] = bp[3]; cp[5] = bp[2]; cp[6] = bp[1]; cp[7] = bp[0];
+#define WRITE_LE_2(cp, bp)  memcpy(cp, bp, 2);
+#define WRITE_LE_3(cp, bp)  memcpy(cp, bp, 3);
+#define WRITE_LE_4(cp, bp)  memcpy(cp, bp, 4);
+#define WRITE_LE_8(cp, bp)  memcpy(cp, bp, 8);
+#else
+#define OS_LITTLE_ENDIAN FALSE 
+#define WRITE_BE_2(cp, bp)  memcpy(cp, bp, 2);
+#define WRITE_BE_3(cp, bp)  memcpy(cp, bp, 3);
+#define WRITE_BE_4(cp, bp)  memcpy(cp, bp, 4);
+#define WRITE_BE_8(cp, bp)  memcpy(cp, bp, 8);
+#define WRITE_LE_2(cp, bp)  cp[0] = bp[1]; cp[1] = bp[0];
+#define WRITE_LE_3(cp, bp)  cp[0] = bp[2]; cp[1] = bp[1]; cp[2] = bp[0];
+#define WRITE_LE_4(cp, bp)  cp[0] = bp[3]; cp[1] = bp[2]; cp[2] = bp[1]; cp[3] = bp[0];
+#define WRITE_LE_8(cp, bp)  cp[0] = bp[7]; cp[1] = bp[6]; cp[2] = bp[5]; cp[3] = bp[4]; \
+							cp[4] = bp[3]; cp[5] = bp[2]; cp[6] = bp[1]; cp[7] = bp[0];
+#endif
+
+
 #pragma pack(4)
 
 // Standard date and time:
@@ -691,7 +849,14 @@ typedef struct rebol_dat {
 } REBOL_DAT;  // not same as REBDAT
 
 typedef int	cmp_t(const void *, const void *);
-void reb_qsort(void *a, size_t n, size_t es, cmp_t *cmp);
+void unstable_sort(void* a, size_t n, size_t es, cmp_t* cmp);
+void   stable_sort(void* a, size_t n, size_t es, cmp_t* cmp);
+#define SORT_FLAG_REVERSE 1
+#define SORT_FLAG_WIDE    2
+#define SORT_FLAG_CASE    3
+#define SORT_FLAG_ALL     4
+#define SORT_FLAG_BINARY  5 // used with the custom sort function
+
 
 // Encoding_opts was originally in sys-core.h, but I moved it here so it can
 // be used also while makking external extensions. (oldes)
@@ -716,6 +881,11 @@ enum encoding_opts {
 
 #pragma pack()
 
+#define UTF8_ACCEPT 0
+#define UTF8_REJECT 12
+#define IS_SURROGATE(c) (c >= 0xD800 && c <= 0xDFFF)
+#define IS_INVALID_CHAR(c) (c == UNKNOWN || c > MAX_UNI || IS_SURROGATE(c))
+
 #endif
 
 //#include "ext-types.h"
@@ -723,7 +893,7 @@ enum encoding_opts {
 **
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2012-2021 Rebol Open Source Contributors
+**  Copyright 2012-2025 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **  Licensed under the Apache License, Version 2.0
 **  This is a code-generated file.
@@ -731,8 +901,8 @@ enum encoding_opts {
 ************************************************************************
 **
 **  Title: Extension Types (Isolators)
-**  Build: 3.10.3
-**  Date:  16-Jan-2023
+**  Build: 3.22.5
+**  Date:  20-Aug-2026
 **  File:  ext-types.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -780,6 +950,7 @@ enum REBOL_Ext_Types
 	RXT_GOB = 47,                 // 35
 	RXT_OBJECT = 48,              // 36
 	RXT_MODULE,                   // 37
+	RXT_STRUCT = 54,              // 38
     RXT_MAX
 };
 
@@ -789,7 +960,7 @@ enum REBOL_Ext_Types
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2012-2022 Rebol Open Source Contributors
+**  Copyright 2012-2026 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -844,6 +1015,8 @@ typedef struct Reb_Header {
 struct Reb_Value;
 typedef struct Reb_Value REBVAL;
 typedef struct Reb_Series REBSER;
+typedef struct Reb_Handle_Context REBHOB;
+typedef union rxi_arg_val RXIARG;
 
 // Value type identifier (generally, should be handled as integer):
 
@@ -928,9 +1101,9 @@ typedef struct Reb_Type {
 #define	SET_INTEGER(v,n) VAL_SET(v, REB_INTEGER), ((v)->data.integer) = (n)
 #define	SET_INT32(v,n)  ((v)->data.integer) = (REBINT)(n)
 
-#define MAX_CHAR		0xffff
+#define MAX_CHAR		0x0010FFFF
 #define VAL_CHAR(v)		((v)->data.uchar)
-#define	SET_CHAR(v,n)	VAL_SET(v, REB_CHAR), VAL_CHAR(v) = (REBUNI)(n)
+#define	SET_CHAR(v,n)	VAL_SET(v, REB_CHAR), VAL_CHAR(v) = (REBINT)(n)
 
 #define IS_NUMBER(v)	(VAL_TYPE(v) == REB_INTEGER || VAL_TYPE(v) == REB_DECIMAL)
 #define	AS_INT32(v)     (IS_INTEGER(v) ? VAL_INT32(v) : (REBINT)VAL_DECIMAL(v))
@@ -985,6 +1158,7 @@ typedef struct deci {
 
 #define VAL_DECIMAL(v)	((v)->data.decimal)
 #define	SET_DECIMAL(v,n) VAL_SET(v, REB_DECIMAL), VAL_DECIMAL(v) = (n)
+#define	SET_PERCENT(v,n) VAL_SET(v, REB_PERCENT), VAL_DECIMAL(v) = (n)
 #define	AS_DECIMAL(v) (IS_INTEGER(v) ? (REBDEC)VAL_INT64(v) : VAL_DECIMAL(v))
 
 typedef deci REBDCI;
@@ -1035,7 +1209,7 @@ typedef struct Reb_Time {
 #define VAL_TIME(v)	((v)->data.time.time)
 #define TIME_SEC(n)	((REBI64)(n) * 1000000000L)
 
-#define MAX_SECONDS	(((i64)1<<31)-1)
+#define MAX_SECONDS	((REBI64)9223372036L) //((i64)((2 ** 63) / (10 ** 9)))
 #define MAX_HOUR	(MAX_SECONDS / 3600)
 #define MAX_TIME	((REBI64)MAX_HOUR * HR_SEC)
 
@@ -1054,6 +1228,7 @@ typedef struct Reb_Time {
 #define DEC_TO_SECS(n) (i64)(((n) + 5.0e-10) * SEC_SEC)
 
 #define SECS_IN_DAY 86400
+#define MICROSECONDS_IN_DAY 86400000000
 #define TIME_IN_DAY (SEC_TIME((i64)SECS_IN_DAY))
 
 #define NO_TIME		MIN_I64
@@ -1189,6 +1364,7 @@ enum {
 	EVF_SHIFT,
 	EVF_HAS_DATA,   // drop_file event series contains data instead of gob
 	EVF_HAS_CODE,   // XY value is interpreted as integer instead of pair
+	EVF_ALT,
 };
 
 
@@ -1198,7 +1374,7 @@ enum {
 	EVM_DEVICE,		// I/O request holds the port pointer
 	EVM_PORT,		// event holds port pointer
 	EVM_OBJECT,		// event holds object frame pointer
-	EVM_GUI,		// GUI event uses system/view/event/port
+	EVM_GUI,		// GUI event uses system/ports/event
 	EVM_CALLBACK,	// Callback event uses system/ports/callback port
 	EVM_MIDI,		// event holds midi port pointer
 	EVM_CONSOLE,    // native console events
@@ -1246,46 +1422,6 @@ enum {
 
 /***********************************************************************
 **
-**	VECTOR
-**
-***********************************************************************/
-
-#define	SET_VECTOR(v,s) VAL_SERIES(v)=(s), VAL_INDEX(v)=0, VAL_SET(v, REB_VECTOR)
-
-// Encoding Format:
-//		stored in series->size for now
-//		[d d d d   d d d d   0 0 0 0   t s b b]
-
-// Encoding identifiers:
-enum {
-	VTSI08 = 0,
-	VTSI16,
-	VTSI32,
-	VTSI64,
-
-	VTUI08,
-	VTUI16,
-	VTUI32,
-	VTUI64,
-
-	VTSF08,		// not used
-	VTSF16,		// not used
-	VTSF32,
-	VTSF64,
-};
-
-static REBCNT bit_sizes[4] = { 8, 16, 32, 64 };
-static REBCNT byte_sizes[4] = { 1, 2, 4, 8 };
-
-#define VECT_TYPE(s) ((s)->size & 0xff)
-#define VECT_BIT_SIZE(bits) (bit_sizes[bits & 3])
-#define VECT_BYTE_SIZE(bits) (byte_sizes[bits & 3])
-#define VAL_VEC_WIDTH(v) VECT_BYTE_SIZE(VECT_TYPE(VAL_SERIES(v)))
-
-
-
-/***********************************************************************
-**
 */	struct Reb_Series
 /*
 **		Series header points to data and keeps track of tail and size.
@@ -1296,12 +1432,10 @@ static REBCNT byte_sizes[4] = { 1, 2, 4, 8 };
 ***********************************************************************/
 {
 	REBYTE	*data;		// series data head
-	REBCNT	tail;		// one past end of useful data
-	REBCNT	rest;		// total number of units from bias to end
-	REBINT	info;		// holds width and flags
-#if defined(__LP64__) || defined(__LLP64__)
-	REBCNT	padding;	// ensure next pointer is naturally aligned
-#endif
+	REBLEN	tail;		// one past end of useful data
+	REBLEN	rest;		// total number of units from bias to end
+	REBINT  sizes;      // 16 bits bias, 8 bits reserved, 8 bits wide!
+	REBCNT  flags;
 	union {
 		REBCNT size;	// used for vectors and bitsets
 		REBSER *series;	// MAP datatype uses this
@@ -1319,8 +1453,9 @@ static REBCNT byte_sizes[4] = { 1, 2, 4, 8 };
 #define SERIES_TAIL(s)	 ((s)->tail)
 #define SERIES_REST(s)	 ((s)->rest)
 #define	SERIES_LEN(s)    ((s)->tail + 1) // Includes terminator
-#define	SERIES_FLAGS(s)	 ((s)->info)
-#define	SERIES_WIDE(s)	 (((s)->info) & 0xff)
+#define	SERIES_SIZES(s)  ((s)->sizes)
+#define	SERIES_FLAGS(s)	 ((s)->flags)
+#define	SERIES_WIDE(s)	 (((s)->sizes) & 0xff)
 #define SERIES_DATA(s)   ((s)->data)
 #define	SERIES_SKIP(s,i) (SERIES_DATA(s) + (SERIES_WIDE(s) * (i)))
 
@@ -1338,11 +1473,11 @@ static REBCNT byte_sizes[4] = { 1, 2, 4, 8 };
 #define	SERIES_FREED(s)  (!SERIES_WIDE(s))
 
 // Bias is empty space in front of head:
-#define	SERIES_BIAS(s)	   (REBCNT)((SERIES_FLAGS(s) >> 16) & 0xffff)
+#define	SERIES_BIAS(s)	   (REBCNT)((SERIES_SIZES(s) >> 16) & 0xffff)
 #define MAX_SERIES_BIAS    0x1000
-#define SERIES_SET_BIAS(s,b) (SERIES_FLAGS(s) = (SERIES_FLAGS(s) & 0xffff) | (b << 16))
-#define SERIES_ADD_BIAS(s,b) (SERIES_FLAGS(s) += (b << 16))
-#define SERIES_SUB_BIAS(s,b) (SERIES_FLAGS(s) -= (b << 16))
+#define SERIES_SET_BIAS(s,b) (SERIES_SIZES(s) = (SERIES_SIZES(s) & 0xffff) | (b << 16))
+#define SERIES_ADD_BIAS(s,b) (SERIES_SIZES(s) += (b << 16))
+#define SERIES_SUB_BIAS(s,b) (SERIES_SIZES(s) -= (b << 16))
 
 // Size in bytes of memory allocated (including bias area):
 #define SERIES_TOTAL(s) ((SERIES_REST(s) + SERIES_BIAS(s)) * (REBCNT)SERIES_WIDE(s))
@@ -1354,8 +1489,8 @@ static REBCNT byte_sizes[4] = { 1, 2, 4, 8 };
 // Optimized expand when at tail (but, does not reterminate)
 #define EXPAND_SERIES_TAIL(s,l) if (SERIES_FITS(s, l)) s->tail += l; else Expand_Series(s, AT_TAIL, l)
 #define RESIZE_SERIES(s,l) s->tail = 0; if (!SERIES_FITS(s, l)) Expand_Series(s, AT_TAIL, l); s->tail = 0
-#define RESET_SERIES(s) s->tail = 0; TERM_SERIES(s)
-#define RESET_TAIL(s) s->tail = 0
+#define RESET_TAIL(s) s->tail = 0; SERIES_CLR_FLAG(s, SER_UTF8);
+#define RESET_SERIES(s) RESET_TAIL(s); TERM_SERIES(s);
 
 // Clear all and clear to tail:
 #define CLEAR_SERIES(s) CLEAR(SERIES_DATA(s), SERIES_SPACE(s))
@@ -1371,11 +1506,11 @@ static REBCNT byte_sizes[4] = { 1, 2, 4, 8 };
 #define	AT_TAIL	((REBCNT)(~0))	// Extend series at tail
 
 // Is it a byte-sized series? (this works because no other odd size allowed)
-#define BYTE_SIZE(s) (((s)->info) & 1)
+#define BYTE_SIZE(s) (SERIES_SIZES(s) & 1)
 #define VAL_BYTE_SIZE(v) (BYTE_SIZE(VAL_SERIES(v)))
-#define VAL_STR_IS_ASCII(v) (VAL_BYTE_SIZE(v) && !Is_Not_ASCII(VAL_BIN_DATA(v), VAL_LEN(v)))
+#define VAL_STR_IS_ASCII(v) (VAL_BYTE_SIZE(v) && Is_ASCII(VAL_BIN_DATA(v), VAL_LEN(v)))
 
-// Series Flags:
+// Series Flags (max32):
 enum {
 	SER_MARK = 1,		// Series was found during GC mark scan.
 	SER_KEEP = 1<<1,	// Series is permanent, do not GC it.
@@ -1385,11 +1520,15 @@ enum {
 	SER_BARE = 1<<5,	// Series has no links to GC-able values
 	SER_PROT = 1<<6,	// Series is protected from modification
 	SER_MON  = 1<<7,	// Monitoring
+	SER_INT  = 1<<8,	// Series data is internal (loop frames) and should not be accessed by users
+	SER_UTF8 = 1<<9,	// Series contains not only ASCII characters
+	SER_SLICE= 1<<10,	// Series is sliced (side link contains the original)
+	SER_SIZEP= 1<<11,   // Series is protected from length modification only (e.g. sliced series)
 };
 
-#define SERIES_SET_FLAG(s, f) (SERIES_FLAGS(s) |= ((f) << 8))
-#define SERIES_CLR_FLAG(s, f) (SERIES_FLAGS(s) &= ~((f) << 8))
-#define SERIES_GET_FLAG(s, f) (SERIES_FLAGS(s) &  ((f) << 8))
+#define SERIES_SET_FLAG(s, f) (SERIES_FLAGS(s) |=  (f))
+#define SERIES_CLR_FLAG(s, f) (SERIES_FLAGS(s) &= ~(f))
+#define SERIES_GET_FLAG(s, f) (SERIES_FLAGS(s) &   (f))
 
 #define	IS_FREEABLE(s)    !SERIES_GET_FLAG(s, SER_MARK|SER_KEEP|SER_FREE)
 #define MARK_SERIES(s)    SERIES_SET_FLAG(s, SER_MARK)
@@ -1398,6 +1537,8 @@ enum {
 #define KEEP_SERIES(s,l)  do {SERIES_SET_FLAG(s, SER_KEEP); LABEL_SERIES(s,l);} while(0)
 #define EXT_SERIES(s)     SERIES_SET_FLAG(s, SER_EXT)
 #define IS_EXT_SERIES(s)  SERIES_GET_FLAG(s, SER_EXT)
+#define INT_SERIES(s)     SERIES_SET_FLAG(s, SER_INT)
+#define IS_INT_SERIES(s)  SERIES_GET_FLAG(s, SER_INT)
 #define LOCK_SERIES(s)    SERIES_SET_FLAG(s, SER_LOCK)
 #define IS_LOCK_SERIES(s) SERIES_GET_FLAG(s, SER_LOCK)
 #define BARE_SERIES(s)    SERIES_SET_FLAG(s, SER_BARE)
@@ -1405,8 +1546,16 @@ enum {
 #define PROTECT_SERIES(s) SERIES_SET_FLAG(s, SER_PROT)
 #define UNPROTECT_SERIES(s)  SERIES_CLR_FLAG(s, SER_PROT)
 #define IS_PROTECT_SERIES(s) SERIES_GET_FLAG(s, SER_PROT)
+#define UTF8_SERIES(s)       SERIES_SET_FLAG(s, SER_UTF8)
+#define IS_UTF8_SERIES(s)    SERIES_GET_FLAG(s, SER_UTF8)
+#define IS_UTF8_STRING(v)    SERIES_GET_FLAG(VAL_SERIES(v), SER_UTF8)
+#define SLICE_SERIES(s)      SERIES_SET_FLAG(s, SER_EXT|SER_SLICE|SER_SIZEP)
+#define IS_SLICE_SERIES(s)   SERIES_GET_FLAG(s, SER_SLICE)
+#define IS_FIXED_SIZE(s)     SERIES_GET_FLAG(s, SER_LOCK|SER_SIZEP)
+#define IS_FIXED_SIZE_VALUE(v) SERIES_GET_FLAG(VAL_SERIES(v), SER_LOCK|SER_SIZEP)
 
 #define TRAP_PROTECT(s) if (IS_PROTECT_SERIES(s)) Trap0(RE_PROTECTED)
+#define TRAP_FIXED_SIZE(s) if (IS_FIXED_SIZE(s)) Trap0(RE_FIXED_SIZED_SERIES)
 
 #ifdef SERIES_LABELS
 #define LABEL_SERIES(s,l) s->label = (l)
@@ -1423,6 +1572,13 @@ enum {
 #define FREE_SERIES(s)
 #define	CHECK_MARK(s,d) if (!IS_MARK_SERIES(s)) Mark_Series(s, d);
 #endif
+
+// Using the mark queue only if we are deep enough
+#define	QUEUE_CHECK_MARK(s,d) \
+		if (!IS_MARK_SERIES(s)) {\
+			if (depth < 64) Mark_Series(s, d); \
+			else Queue_Mark_Series(s);\
+		}
 
 //#define LABEL_SERIES(s,l) s->label = (l)
 #define IS_BLOCK_SERIES(s) (SERIES_WIDE(s) == sizeof(REBVAL))
@@ -1744,6 +1900,7 @@ typedef struct Reb_Series_Ref
 		REBSER	*side;		// lookaside block for lists/hashes/images
 		REBINT  back;		// (Used in DO for stack back linking)
 //		REBFRM	*frame;		// (may also be used as frame for binding blocks)
+		REBFLG  vtype;      // vector! type encoding
 	} link;
 } REBSRI;
 
@@ -1760,6 +1917,7 @@ typedef struct Reb_Series_Ref
 #define	VAL_SERIES_FRAME(v) ((v)->data.series.link.frame)
 #define VAL_SERIES_WIDTH(v) (SERIES_WIDE(VAL_SERIES(v)))
 #define VAL_LIMIT_SERIES(v) if (VAL_INDEX(v) > VAL_TAIL(v)) VAL_INDEX(v) = VAL_TAIL(v)
+#define VAL_IS_UTF8(v)      IS_UTF8_SERIES(VAL_SERIES(v))
 
 #define DIFF_PTRS(a,b) (REBCNT)((REBYTE*)a - (REBYTE*)b)
 
@@ -1783,6 +1941,7 @@ typedef struct Reb_Series_Ref
 #define BIN_SKIP(s, n)	(((REBYTE *)((s)->data))+(n))
 #define	BIN_LEN(s)		(SERIES_TAIL(s))
 #define VAL_BIN_AT(v)   ((REBYTE*)(BIN_DATA(VAL_SERIES(v))+VAL_INDEX(v)))
+#define VAL_BIN_LEN(v)  ((SERIES_TAIL(VAL_SERIES(v)) - VAL_INDEX(v)))
 
 // Arg is a unicode series:
 #define UNI_HEAD(s)		((REBUNI *)((s)->data))
@@ -1818,7 +1977,12 @@ typedef struct Reb_Series_Ref
 
 // Get a char, from either byte or unicode string:
 #define GET_ANY_CHAR(s,n)   (REBUNI)(BYTE_SIZE(s) ? BIN_HEAD(s)[n] : UNI_HEAD(s)[n])
-#define SET_ANY_CHAR(s,n,c) if BYTE_SIZE(s) BIN_HEAD(s)[n]=((REBYTE)c); else UNI_HEAD(s)[n]=((REBUNI)c)
+#define GET_UTF8_CHAR(s,n) (REBU32)(IS_UTF8_SERIES(s) ? UTF8_Get_Codepoint(BIN_SKIP(s, n)) : BIN_HEAD(s)[n])
+#define SET_ANY_CHAR(s,n,c) \
+		if (c > 0x7F || IS_UTF8_SERIES(s)) { \
+			UTF8_SERIES(s); \
+			UTF8_Replace_Codepoint(s, n, c); \
+		} else BIN_HEAD(s)[n] = (REBYTE)c;
 #define GET_CHAR_UNI(f,p,i) (uni ? ((REBUNI*)p)[i] : ((REBYTE*)bp)[i])
 
 #define VAL_ANY_CHAR(v) GET_ANY_CHAR(VAL_SERIES(v), VAL_INDEX(v))
@@ -1836,6 +2000,71 @@ typedef struct Reb_Series_Ref
 			if (MOLD_OVER_LIMIT(mold)) return;                \
 			if (MOLD_REST(mold) < len) len = MOLD_REST(mold); \
 		}
+
+/***********************************************************************
+**
+**	VECTOR
+**
+***********************************************************************/
+
+// Encoding identifiers:
+enum {
+	VTSI08, VTSI16, VTSI32, VTSI64,
+	VTUI08, VTUI16, VTUI32, VTUI64,
+	VTSF08, VTSF16, VTSF32, VTSF64, // VTSF08 and VTSF16 not used!
+	VT_MAX,
+};
+
+#define VECT_BB_MASK    0x00000003  // bits 1..0   -- bit-width code (0-3)
+#define VECT_SIGN_MASK  0x00000004  // bit  2      -- signed flag
+#define VECT_TYPE_MASK  0x00000008  // bit  3      -- float flag
+
+#define VECT_BB_SHIFT    0
+#define VECT_SIGN_SHIFT  2
+#define VECT_TYPE_SHIFT  3
+
+// Encode vector element type from components
+#define VECT_MAKE_TYPE(bb, sign, isfloat) \
+    ( (isfloat) ? (VTSF08 + (bb)) \
+    : (sign)    ? (VTSI08 + (bb)) \
+    :             (VTUI08 + (bb)) )
+
+#define VECT_INFO_TYPE_MASK   0x000000FF
+#define VECT_INFO_ROWS_SHIFT  8
+#define VECT_INFO_ROWS_MAX   (0xFFFFFFFFu >> VECT_INFO_ROWS_SHIFT) // 0x00FFFFFF = 16777215
+
+#define VAL_VEC_INFO(v)   ((v)->data.series.link.vtype)           // raw packed field
+#define VAL_VEC_TYPE(v)   (VAL_VEC_INFO(v) & VECT_INFO_TYPE_MASK) // one of VTSI08..VTSF64
+#define VAL_VEC_ROWS(v)   ((REBCNT)VAL_VEC_INFO(v) >> VECT_INFO_ROWS_SHIFT)
+#define VAL_VEC_SET_ROWS(v,r) \
+	(VAL_VEC_INFO(v) = (VAL_VEC_INFO(v) & VECT_INFO_TYPE_MASK) | ((REBCNT)(r) << VECT_INFO_ROWS_SHIFT))
+#define VAL_VEC_COLS(v) \
+	(VAL_VEC_ROWS(v) ? VAL_TAIL(v) / VAL_VEC_ROWS(v) : 0)
+
+// Derive width from the low 2 bits of the enum value
+#define VECT_BITS(vtype) (8 << (vtype & 3))
+#define VECT_WIDE(vtype) (1 << (vtype & 3))
+// Sign: unsigned identifiers start at VTUI08=4, so bit 2 is the sign flag
+#define VECT_SIGN(vtype) ((vtype & 4) == 0) // 0=signed, 1=unsigned
+// Float: float identifiers start at VTSF08=8, so bit 3 is the float flag
+#define VECT_DECI(vtype) ((vtype & 8) != 0)
+#define VECT_DIMS(vtype) 1 // TODO!
+
+#define VAL_VEC_BITS(v)  (VECT_BITS(VAL_VEC_INFO(v)))
+#define VAL_VEC_WIDE(v)  (VECT_WIDE(VAL_VEC_INFO(v)))
+#define VAL_VEC_SIGN(v)  (VECT_SIGN(VAL_VEC_INFO(v)))  
+#define VAL_VEC_DECI(v)  (VECT_DECI(VAL_VEC_INFO(v)))  
+
+#define VAL_VEC_TAIL(v)  VAL_TAIL(v)
+#define VAL_VEC_HEAD(v)  (VAL_BIN_HEAD(v))
+#define VAL_VEC_DATA(v)  (VAL_BIN_HEAD(v) + VAL_INDEX(v) * VAL_VEC_WIDE(v))
+
+#define SET_VECTOR(v,s,t) \
+	VAL_SERIES(v)=(s), \
+	VAL_VEC_INFO(v) = ((t) & VECT_INFO_TYPE_MASK) | (1 << VECT_INFO_ROWS_SHIFT), \
+	VAL_INDEX(v)=0, \
+	VAL_SET(v, REB_VECTOR)
+
 
 /***********************************************************************
 **
@@ -1964,12 +2193,12 @@ typedef struct Reb_Side {		// lookaside series
 	REBCNT	past;		// prior element
 } REBLAB;
 
-#define LIST_HEAD(s)	((REBLAB *)((s)->data))
-#define LIST_SKIP(s,n)	(((REBLAB *)((s)->data))+(n))
-
-#define	VAL_LIST(v)		LIST_HEAD(VAL_SERIES_SIDE(v))
-
-#define	SET_LIST(v,s,l)	VAL_SERIES(v)=(s), VAL_INDEX(v)=0, VAL_SER_LIST(v)=(l), VAL_SET(v, REB_LIST)
+//#define LIST_HEAD(s)	((REBLAB *)((s)->data))
+//#define LIST_SKIP(s,n)	(((REBLAB *)((s)->data))+(n))
+//
+//#define	VAL_LIST(v)		LIST_HEAD(VAL_SERIES_SIDE(v))
+//
+//#define	SET_LIST(v,s,l)	VAL_SERIES(v)=(s), VAL_INDEX(v)=0, VAL_SER_LIST(v)=(l), VAL_SET(v, REB_LIST)
 
 
 /***********************************************************************
@@ -2151,6 +2380,8 @@ typedef struct Reb_Error {
 #define	IS_CONTINUE(v)		(VAL_ERR_NUM(v) == RE_CONTINUE)
 #define THROWN(v)			(IS_ERROR(v) && IS_THROW(v))
 
+#define THROWN_DISARM_OFFSET 100000 // used to disarm thrown errors (converted to complete error object)
+
 #define	SET_ERROR(v,n,a)	VAL_SET(v, REB_ERROR), VAL_ERR_NUM(v)=n, VAL_ERR_OBJECT(v)=a, VAL_ERR_SYM(v)=0
 #define	SET_THROW(v,n,a)	VAL_SET(v, REB_ERROR), VAL_ERR_NUM(v)=n, VAL_ERR_VALUE(v)=a, VAL_ERR_SYM(v)=0
 
@@ -2192,8 +2423,8 @@ typedef void (*REBDOF)(REBVAL *ds);				// DO evaltype dispatch function
 typedef int  (*REBPAF)(REBVAL *ds, REBVAL *p, REBCNT a); // Port action func
 
 typedef int     (*REB_HANDLE_FREE_FUNC)(void *hnd);
-typedef REBSER* (*REB_HANDLE_MOLD_FUNC)(REBSER *mold, void *hnd); //TODO: not used yet!
-typedef int     (*REB_HANDLE_ACTION)(void *hnd, REBVAL *ds, REBCNT a);
+typedef int     (*REB_HANDLE_MOLD_FUNC)(REBHOB *hob, REBSER *ser);
+typedef int     (*REB_HANDLE_EVAL_PATH)(REBHOB *hob, REBCNT word, REBCNT *type, RXIARG *arg);
 
 typedef void (*ANYFUNC)(void *);
 typedef void (*TRYFUNC)(void *);
@@ -2286,11 +2517,17 @@ enum Handle_Flags {
 	HANDLE_CONTEXT_LOCKED = 1 << 5,  // so Rebol will not GC the handle if C side still depends on it
 };
 
+enum Handle_Spec_Flags {
+	HANDLE_REQUIRES_HOB_ON_FREE = 1 << 0
+};
+
 typedef struct Reb_Handle_Spec {
 	REBCNT size;
+	REBFLG flags;
 	REB_HANDLE_FREE_FUNC free;
-	//REB_HANDLE_MOLD_FUNC mold;
-	REB_HANDLE_ACTION action;
+	REB_HANDLE_EVAL_PATH get_path;
+	REB_HANDLE_EVAL_PATH set_path;
+	REB_HANDLE_MOLD_FUNC mold;
 } REBHSP;
 
 typedef struct Reb_Handle_Context {
@@ -2416,16 +2653,68 @@ typedef struct Reb_Typeset {
 ***********************************************************************/
 
 typedef struct Reb_Struct {
-	REBSER	*spec;
-	REBSER  *fields;	// fields definition
-	REBSER	*data;
+	REBSER *spec;
+	REBSER *data;
+	REBCNT offset;
+	//REBCNT flags;
 } REBSTU;
 
-#define VAL_STRUCT(v)       (v->data.structure)
-#define VAL_STRUCT_SPEC(v)  (v->data.structure.spec)
-#define VAL_STRUCT_FIELDS(v) ((v)->data.structure.fields)
-#define VAL_STRUCT_DATA(v)  (v->data.structure.data)
-#define VAL_STRUCT_DP(v)    (STR_HEAD(VAL_STRUCT_DATA(v)))
+typedef struct Reb_Struct_Field {
+	REBCNT sym;
+	REBINT type;      /* rebol type */
+	REBCNT offset;
+	REBCNT dimension; /* for arrays */
+	REBCNT size;      /* size of element, in bytes */
+
+	REBSER *spec;     /* for nested struct */
+
+	unsigned int array : 1;
+	unsigned int done : 1; /* field is initialized?, used by GC to decide if the value needs to be marked */
+} REBSTF;
+
+typedef struct Reb_Struct_Info {
+	REBCNT id;    // hash of the specification block
+	REBCNT size;  // length of the complete struct in bytes
+	REBCNT count; // number of struct fields
+	REBCNT name;  // optionaly registered name
+	REBCNT flags;
+	REBCNT hash;  // hash of field types
+} REBSTI;
+
+#define	SET_STRUCT(v) VAL_SET(v, REB_STRUCT), VAL_STRUCT_OFFSET(v) = 0
+
+#define STRUCT_OFFSET(s)     ((s)->offset)
+#define STRUCT_SPEC(s)       ((s)->spec)
+#define STRUCT_FIELDS_SER(s) (STRUCT_SPEC(s)->series)
+#define STRUCT_FIELDS(s)     ((REBSTF *)BLK_HEAD(STRUCT_FIELDS_SER(s)) + 1)
+#define STRUCT_FIELDS_NUM(s) (SERIES_TAIL(STRUCT_FIELDS_SER(s)) - 1)
+#define STRUCT_INFO(s)       ((REBSTI *)BLK_HEAD(STRUCT_FIELDS_SER(s)))
+#define STRUCT_DATA(s)       ((s)->data)
+#define STRUCT_DATA_BIN(s)   (BIN_SKIP(STRUCT_DATA(s), STRUCT_OFFSET(s)))
+#define STRUCT_ID(s)         (STRUCT_INFO(s)->id)
+#define STRUCT_SIZE(s)       (STRUCT_INFO(s)->size)   // complete size in bytes
+#define STRUCT_COUNT(s)      (STRUCT_INFO(s)->count)  // number of fields
+#define STRUCT_NAME(s)       (STRUCT_INFO(s)->name)
+#define STRUCT_FLAGS(s)      (STRUCT_INFO(s)->flags)
+#define STRUCT_HASH(s)       (STRUCT_INFO(s)->hash)
+#define STRUCT_NEEDS_MARK(s) ((STRUCT_FLAGS(s) & 1) != 0)
+#define STRUCT_PROTECTED(s)  ((STRUCT_FLAGS(s) & 2) != 0)
+
+#define VAL_STRUCT(v)        (v->data.structure)
+#define VAL_STRUCT_SPEC(v)   (v->data.structure.spec)
+#define VAL_STRUCT_OFFSET(v) (v->data.structure.offset)
+#define VAL_STRUCT_FIELDS(v) (VAL_STRUCT_SPEC(v)->series)
+#define VAL_STRUCT_DATA(v)   (v->data.structure.data)
+#define VAL_STRUCT_DATA_BIN(v) (BIN_SKIP(VAL_STRUCT_DATA(v), v->data.structure.offset))
+#define VAL_STRUCT_INFO(v)   ((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))
+#define VAL_STRUCT_SIZE(v)   (((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->size)
+#define VAL_STRUCT_COUNT(v)  (((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->count)
+#define VAL_STRUCT_ID(v)     (((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->id)
+#define VAL_STRUCT_NAME(v)   (((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->name)
+#define VAL_STRUCT_FLAGS(v)  (((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->flags)
+#define VAL_STRUCT_HASH(v)  (((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->hash)
+#define VAL_STRUCT_NEEDS_MARK(v) ((((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->flags & 1) != 0)
+#define VAL_STRUCT_PROTECTED(v) ((((REBSTI *)BLK_HEAD(VAL_STRUCT_FIELDS(v)))->flags & 2) != 0)
 
 /***********************************************************************
 **
@@ -2447,7 +2736,6 @@ typedef struct Reb_All {
 } REBALL;
 
 #define VAL_ALL_BITS(v) ((v)->data.all.bits)
-
 
 /***********************************************************************
 **
@@ -2472,7 +2760,7 @@ typedef struct Reb_All {
 		REBI64	integer;
 		REBU64	unteger;
 		REBDEC	decimal;
-		REBUNI  uchar;
+		REBCNT  uchar;
 		REBERR	error;
 		REBTYP	datatype;
 		REBFRM	frame;
@@ -2499,12 +2787,15 @@ typedef struct Reb_All {
 #define ANY_SERIES(v)		(VAL_TYPE(v) >= REB_BINARY && VAL_TYPE(v) <= REB_LIT_PATH)
 #define ANY_STR(v)			(VAL_TYPE(v) >= REB_STRING && VAL_TYPE(v) <= REB_TAG)
 #define ANY_BINSTR(v)		(VAL_TYPE(v) >= REB_BINARY && VAL_TYPE(v) <= REB_TAG)
-#define ANY_BLOCK(v)		(VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_LIT_PATH)
+#define ANY_BLOCK(v)		(VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_HASH)
+#define ANY_BLOCK_OR_MAP(v) (VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_MAP)
 #define	ANY_WORD(v)			(VAL_TYPE(v) >= REB_WORD   && VAL_TYPE(v) <= REB_ISSUE)
 #define	ANY_PATH(v)			(VAL_TYPE(v) >= REB_PATH   && VAL_TYPE(v) <= REB_LIT_PATH)
 #define ANY_FUNC(v)			(VAL_TYPE(v) >= REB_NATIVE && VAL_TYPE(v) <= REB_FUNCTION)
 #define ANY_EVAL_BLOCK(v)	(VAL_TYPE(v) >= REB_BLOCK  && VAL_TYPE(v) <= REB_PAREN)
 #define ANY_OBJECT(v)		(VAL_TYPE(v) >= REB_OBJECT && VAL_TYPE(v) <= REB_PORT)
+#define ANY_NUMBER(v)	    (VAL_TYPE(v) >= REB_INTEGER && VAL_TYPE(v) <= REB_MONEY)
+#define ANY_SCALAR(v)	    (VAL_TYPE(v) >= REB_UNSET  && VAL_TYPE(v) <= REB_DATE)
 
 #define ANY_BLOCK_TYPE(t)   (t >= REB_BLOCK   && t <= REB_LIT_PATH)
 #define ANY_STR_TYPE(t)     (t >= REB_STRING  && t <= REB_TAG)
@@ -2512,6 +2803,59 @@ typedef struct Reb_All {
 #pragma pack()
 
 #endif // value.h
+
+
+//#include "reb-ext-handler.h"
+/***********************************************************************
+**
+**  REBOL [R3] Language Interpreter and Run-time Environment
+**
+**  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2025 Rebol Open Source Contributors
+**  REBOL is a trademark of REBOL Technologies
+**
+**  Licensed under the Apache License, Version 2.0 (the "License");
+**  you may not use this file except in compliance with the License.
+**  You may obtain a copy of the License at
+**
+**  http://www.apache.org/licenses/LICENSE-2.0
+**
+**  Unless required by applicable law or agreed to in writing, software
+**  distributed under the License is distributed on an "AS IS" BASIS,
+**  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+**  See the License for the specific language governing permissions and
+**  limitations under the License.
+**
+************************************************************************
+**
+**  Summary: Defines function pointer types used by runtime extensions.
+**  Module:  reb-ext-handler.h
+**  Author:  Oldes
+**  Notes:
+**
+***********************************************************************/
+
+
+/***********************************************************************
+**  De/Compression runtime extension function pointer types.
+**  Used by the RL_Register_Compress_Method function to register
+**  compression methods from native extensions.
+***********************************************************************/
+typedef int (*COMPRESS_FUNC)(
+    const REBYTE *input,
+    REBLEN        in_len,
+	REBCNT        level,
+    REBSER      **output,
+	REBINT       *error
+);
+
+typedef int (*DECOMPRESS_FUNC)(
+    const REBYTE *input,
+	REBLEN        in_len,
+	REBLEN        out_len,
+    REBSER      **output,
+	REBINT       *error
+);
 
 
 
@@ -2524,6 +2868,9 @@ typedef struct Reb_All {
 # endif
 #endif
 
+// RXIARG has 16bytes and so there is room only for 15 args, because
+// the first RXIARG in the RXIFRM contains types of all used command args.
+#define MAX_RXI_ARGS 15
 
 /* Prefix naming conventions:
 
@@ -2546,9 +2893,10 @@ typedef struct Reb_All {
 typedef union rxi_arg_val {
 	void *addr;
 	i64    int64;
+	u64    uint64;
 	double dec64;
 	REBXYF pair;
-	REBYTE bytes[8];
+	REBYTE bytes[MAX_RXI_ARGS+1];
 	struct {
 		i32 int32a;
 		i32 int32b;
@@ -2581,6 +2929,17 @@ typedef union rxi_arg_val {
 		REBYTE tuple_len;
 		REBYTE tuple_bytes[MAX_TUPLE];
 	};
+	struct {
+		REBSER *series; // Rebol series where struct's data are stored
+		REBCNT offset;  // like series' index (used with nested structs)
+		REBCNT id;      // unique struct id counted as a hash of its specification
+	} structure;
+	struct {
+		REBSER *series;
+		REBCNT index;
+		REBCNT info;
+	} vector;
+
 } RXIARG;
 
 // For direct access to arg array:
@@ -2589,7 +2948,7 @@ typedef union rxi_arg_val {
 
 // Command function call frame:
 typedef struct rxi_cmd_frame {
-	RXIARG args[8];	// arg values (128 bits each)
+	RXIARG args[MAX_RXI_ARGS+1];	// arg values (128 bits each)
 } RXIFRM;
 
 typedef struct rxi_cmd_context {
@@ -2603,35 +2962,44 @@ typedef int (*RXICAL)(int cmd, RXIFRM *args, REBCEC *ctx);
 #pragma pack()
 
 // Access macros (indirect access via RXIFRM pointer):
-#define RXA_ARG(f,n)	((f)->args[n])
-#define RXA_COUNT(f)	(RXA_ARG(f,0).bytes[0]) // number of args
-#define RXA_TYPE(f,n)	(RXA_ARG(f,0).bytes[n]) // types (of first 7 args)
-#define RXA_REF(f,n)	(RXA_ARG(f,n).int32a)
+#define RXA_ARG(f,n)            ((f)->args[n])
+#define RXA_COUNT(f)            (RXA_ARG(f,0).bytes[0]) // number of args
+#define RXA_TYPE(f,n)           (RXA_ARG(f,0).bytes[n]) // types (of first 7 args)
+#define RXA_REF(f,n)            (RXA_ARG(f,n).int32a)
 
-#define RXA_INT64(f,n)	(RXA_ARG(f,n).int64)
-#define RXA_INT32(f,n)	(i32)(RXA_ARG(f,n).int64)
-#define RXA_DEC64(f,n)	(RXA_ARG(f,n).dec64)
-#define RXA_LOGIC(f,n)	(RXA_ARG(f,n).int32a)
-#define RXA_CHAR(f,n)	(RXA_ARG(f,n).int32a)
-#define RXA_TIME(f,n)	(RXA_ARG(f,n).int64)
-#define RXA_DATE(f,n)	(RXA_ARG(f,n).int32a)
-#define RXA_WORD(f,n)	(RXA_ARG(f,n).int32a)
-#define RXA_PAIR(f,n)	(RXA_ARG(f,n).pair)
-#define RXA_TUPLE(f,n)	(RXA_ARG(f,n).tuple_bytes)
-#define RXA_TUPLE_LEN(f,n)	(RXA_ARG(f,n).tuple_len)
-#define RXA_SERIES(f,n)	(RXA_ARG(f,n).series)
-#define RXA_INDEX(f,n)	(RXA_ARG(f,n).index)
-#define RXA_OBJECT(f,n)	(RXA_ARG(f,n).addr)
-#define RXA_MODULE(f,n)	(RXA_ARG(f,n).addr)
-#define RXA_HANDLE(f,n)	(RXA_ARG(f,n).handle.ptr)
+#define RXA_INT64(f,n)          (RXA_ARG(f,n).int64)
+#define RXA_INT32(f,n)          (i32)(RXA_ARG(f,n).int64)
+#define RXA_UINT64(f,n)         (RXA_ARG(f,n).uint64)
+#define RXA_DEC64(f,n)          (RXA_ARG(f,n).dec64)
+#define RXA_LOGIC(f,n)          (RXA_ARG(f,n).int32a)
+#define RXA_CHAR(f,n)           (RXA_ARG(f,n).int32a)
+#define RXA_TIME(f,n)           (RXA_ARG(f,n).int64)
+#define RXA_DATE(f,n)           (RXA_ARG(f,n).int32a)
+#define RXA_WORD(f,n)           (RXA_ARG(f,n).int32a)
+#define RXA_PAIR(f,n)           (RXA_ARG(f,n).pair)
+#define RXA_TUPLE(f,n)          (RXA_ARG(f,n).tuple_bytes)
+#define RXA_TUPLE_LEN(f,n)      (RXA_ARG(f,n).tuple_len)
+#define RXA_SERIES(f,n)         (RXA_ARG(f,n).series)
+#define RXA_INDEX(f,n)          (RXA_ARG(f,n).index)
+#define RXA_OBJECT(f,n)         (RXA_ARG(f,n).addr)
+#define RXA_MODULE(f,n)         (RXA_ARG(f,n).addr)
+#define RXA_HANDLE(f,n)         (RXA_ARG(f,n).handle.ptr)
 #define RXA_HANDLE_CONTEXT(f,n) (RXA_ARG(f,n).handle.hob)
-#define RXA_HANDLE_TYPE(f,n)  (RXA_ARG(f,n).handle.type)
-#define RXA_HANDLE_FLAGS(f,n)  (RXA_ARG(f,n).handle.flags)
-#define RXA_HANDLE_INDEX(f,n)  (RXA_ARG(f,n).handle.index)
-#define RXA_IMAGE(f,n)	      (RXA_ARG(f,n).image)
-#define RXA_IMAGE_BITS(f,n)	  ((REBYTE *)RL_SERIES((RXA_ARG(f,n).image), RXI_SER_DATA))
-#define RXA_IMAGE_WIDTH(f,n)  (RXA_ARG(f,n).width)
-#define RXA_IMAGE_HEIGHT(f,n) (RXA_ARG(f,n).height)
+#define RXA_HANDLE_TYPE(f,n)    (RXA_ARG(f,n).handle.type)
+#define RXA_HANDLE_FLAGS(f,n)   (RXA_ARG(f,n).handle.flags)
+#define RXA_HANDLE_INDEX(f,n)   (RXA_ARG(f,n).handle.index)
+#define RXA_IMAGE(f,n)          (RXA_ARG(f,n).image)
+#define RXA_IMAGE_BITS(f,n)     ((REBYTE *)RL_SERIES((RXA_ARG(f,n).image), RXI_SER_DATA))
+#define RXA_IMAGE_WIDTH(f,n)    (RXA_ARG(f,n).width)
+#define RXA_IMAGE_HEIGHT(f,n)   (RXA_ARG(f,n).height)
+#define RXA_STRUCT_SER(f,n)		  (RXA_ARG(f,n).structure.series)
+#define RXA_STRUCT_BIN(f,n)     ((REBYTE *)(SERIES_DATA(RXA_STRUCT_SER(f,n))) + RXA_INDEX(f,n))
+#define RXA_STRUCT_LEN(f,n)     (SERIES_TAIL(RXA_STRUCT_SER(f,n)) - RXA_INDEX(f,n)) // length in bytes
+#define RXA_STRUCT_ID(f,n)      (RXA_ARG(f,n).structure.id)
+#define RXA_STRUCT_SPEC(f,n)	(RL_STRUCT_SPEC(RXA_STRUCT_ID(f,n)))
+#define RXA_VECTOR_SERIES(f,n)  (RXA_ARG(f,n).vector.series)
+#define RXA_VECTOR_INDEX(f,n)   (RXA_ARG(f,n).vector.index)
+#define RXA_VECTOR_INFO(f,n)    (RXA_ARG(f,n).vector.info)
 
 // Command function return values:
 enum rxi_return {
@@ -2655,6 +3023,20 @@ enum {
 	RXI_SER_WIDE,	// width of series (in bytes)
 	RXI_SER_LEFT,	// units free in series (past tail)
 };
+
+// Vector info
+#define RXI_VEC_TYPE_MASK   0x00000003
+#define RXI_VEC_SIGN_MASK   0x00000004
+#define RXI_VEC_FLOAT_MASK  0x00000008
+#define RXI_VEC_ROWS_SHIFT  8
+
+#define RXI_VECTOR_TYPE(info)   ((info) & 0x000000FF)
+#define RXI_VECTOR_BITS(info)   (8 << ((info) & RXI_VEC_TYPE_MASK))
+#define RXI_VECTOR_SIGNED(info) (((info) & RXI_VEC_SIGN_MASK) == 0)
+#define RXI_VECTOR_FLOAT(info)  (((info) & RXI_VEC_FLOAT_MASK) != 0)
+#define RXI_VECTOR_ROWS(info)   ((REBCNT)(info) >> RXI_VEC_ROWS_SHIFT)
+#define RXI_VECTOR_COLS(tail, info) \
+	(RXI_VECTOR_ROWS(info) ? ((REBCNT)(tail) / RXI_VECTOR_ROWS(info)) : 0)
 
 // Error Codes (returned in result value from some API functions):
 enum {
@@ -2680,110 +3062,11 @@ enum {
 	RXC_ASYNC,		// async callback
 	RXC_QUEUED,		// pending in event queue
 	RXC_DONE,		// call completed, structs can be freed
+	RXC_ALLOC,		// callback was allocated and must be freed on done
 };
 
 
 #define AS_WORD(w) RL_MAP_WORD(b_cast(w)) // may be used to awoid warning casting from char* to REBYTE*
-
-
-// File: reb-args.h
-/***********************************************************************
-**
-**  REBOL [R3] Language Interpreter and Run-time Environment
-**
-**  Copyright 2012 REBOL Technologies
-**  REBOL is a trademark of REBOL Technologies
-**
-**  Licensed under the Apache License, Version 2.0 (the "License");
-**  you may not use this file except in compliance with the License.
-**  You may obtain a copy of the License at
-**
-**  http://www.apache.org/licenses/LICENSE-2.0
-**
-**  Unless required by applicable law or agreed to in writing, software
-**  distributed under the License is distributed on an "AS IS" BASIS,
-**  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-**  See the License for the specific language governing permissions and
-**  limitations under the License.
-**
-************************************************************************
-**
-**  Summary: Program startup arguments
-**  Module:  reb-args.h
-**  Author:  Carl Sassenrath
-**  Notes:
-**     Arg struct is used by R3 lib, so must not be modified.
-**
-***********************************************************************/
-
-// REBOL startup option structure:
-typedef struct rebol_args {
-	REBCNT options;
-	REBCHR *script;
-	REBCHR *do_arg;
-	REBCHR *version;
-	REBCHR *debug;
-	REBCHR *import;
-	REBCHR *secure;
-	REBCHR *boot;
-	REBCHR *exe_path;
-	REBCHR *current_dir;
-	REBCHR *args;         // value for the --args option
-	REBCNT  argc;         // unprocessed argument count
-	REBCHR **argv;        // unprocessed arguments
-} REBARGS;
-
-// REBOL arg option flags:
-// Must stay matched to system/catalog/boot-flags.
-enum arg_opts {
-	ROF_EXT,
-
-	ROF_SCRIPT,
-	ROF_ARGS,
-	ROF_DO,
-	ROF_IMPORT,
-	ROF_VERSION,
-	ROF_DEBUG,
-	ROF_SECURE,
-
-	ROF_HELP,
-	ROF_VERS,
-	ROF_QUIET,
-	ROF_VERBOSE,
-	ROF_SECURE_MIN,
-	ROF_SECURE_MAX,
-	ROF_TRACE,
-	ROF_HALT,
-	ROF_CGI,
-	ROF_BOOT,
-	ROF_NO_WINDOW,
-
-	ROF_IGNORE, // not an option
-};
-
-#define RO_EXT         (1<<ROF_EXT)
-#define RO_HELP        (1<<ROF_HELP)
-#define RO_IMPORT      (1<<ROF_IMPORT)
-#define RO_CGI         (1<<ROF_CGI)
-#define RO_ARGS        (1<<ROF_ARGS)
-#define RO_DO          (1<<ROF_DO)
-#define RO_DEBUG       (1<<ROF_DEBUG)
-#define RO_SECURE_MIN  (1<<ROF_SECURE_MIN)
-#define RO_SECURE_MAX  (1<<ROF_SECURE_MAX)
-#define RO_QUIET       (1<<ROF_QUIET)
-#define RO_SCRIPT      (1<<ROF_SCRIPT)
-#define RO_SECURE      (1<<ROF_SECURE)
-#define RO_TRACE       (1<<ROF_TRACE)
-#define RO_VERSION     (1<<ROF_VERSION)
-#define RO_VERS        (1<<ROF_VERS)
-#define RO_VERBOSE     (1<<ROF_VERBOSE)
-#define RO_HALT        (1<<ROF_HALT)
-#define RO_BOOT        (1<<ROF_BOOT)
-#define RO_NO_WINDOW   (1<<ROF_NO_WINDOW)
-
-#define RO_IGNORE      (1<<ROF_IGNORE)
-
-void Parse_Args(int argc, REBCHR **argv, REBARGS *rargs);
 
 
 // File: reb-device.h
@@ -2792,6 +3075,7 @@ void Parse_Args(int argc, REBCHR **argv, REBARGS *rargs);
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
+**  Copyright 2013-2025 Rebol Open Source Developers
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -2833,6 +3117,8 @@ enum {
 	RDI_CLIPBOARD,
 	RDI_MIDI,
 	RDI_CRYPT,
+	RDI_SERIAL,
+	RDI_AUDIO,
 	RDI_MAX,
 	RDI_LIMIT = 32
 };
@@ -2870,6 +3156,7 @@ enum {
 #define DR_PEND   1	// request is still pending
 #define DR_DONE   0	// request is complete w/o errors
 #define DR_ERROR -1	// request had an error
+#define DR_IGNORE -2 // unrecognized escape sequence
 
 // REBOL Device Flags and Options (bitnums):
 enum {
@@ -2904,8 +3191,30 @@ enum {
 
 enum {
 	RDM_NULL,		// Null device
-	RDM_READ_LINE,
+	RDM_READ_LINE,	// Read line mode
+	RDM_CGI
 };
+
+// Serial Parity
+enum {
+	SERIAL_PARITY_NONE,
+	SERIAL_PARITY_ODD,
+	SERIAL_PARITY_EVEN
+};
+
+// Serial Flow Control
+enum {
+	SERIAL_FLOW_CONTROL_NONE,
+	SERIAL_FLOW_CONTROL_HARDWARE,
+	SERIAL_FLOW_CONTROL_SOFTWARE
+};
+
+typedef struct {
+	REBU32 uchar;
+	REBU16 virtu;
+	REBU16 flags;
+} REBKEY;
+
 
 #pragma pack(4)
 
@@ -2926,15 +3235,23 @@ struct rebol_device {
 	u32 date;				// year, month, day, hour
 	DEVICE_CMD_FUNC *commands;	// command dispatch table
 	u32 max_command;		// keep commands in bounds
-	REBREQ *pending;		// pending requests
 	u32 flags;				// state: open, signal
+	REBREQ *pending;		// pending requests
 	i32 req_size;			// size of request struct
 };
-
-// Inializer (keep ordered same as above)
-#define DEFINE_DEV(w,t,v,c,m,s) REBDEV w = {t, v, 0, c, m, 0, 0, s}
+#define DEFINE_DEV(w,t,v,c,m,s) REBDEV w = { \
+	.title = t, \
+	.version = v, \
+	.date = 0, \
+	.commands = c, \
+	.max_command = m, \
+	.flags = 0, \
+	.pending = 0, \
+	.req_size = s \
+}
 
 // Request structure:		// Allowed to be extended by some devices
+// NOTE: when size of this struct is modified, reflect it in the make-reb-lib.reb file! (CHECK_STRUCT_ALIGN)
 struct rebol_devreq {
 	u32 clen;				// size of extended structure
 
@@ -2955,12 +3272,16 @@ struct rebol_devreq {
 	u16  flags;				// request flags
 	u16  state;				// device process flags
 	i32  timeout;			// request timeout
+#if defined(__LP64__) || defined(__LLP64__)
+	i32 _pad;
+#endif
 //	int (*prewake)(void *);	// callback before awake
 
 	// Common fields:
 	union {
 		REBYTE *data;		// data to transfer
 		REBREQ *sock;		// temp link to related socket
+		const REBYTE *cdata;
 	};
 	u32  length;			// length to transfer
 	u32  actual;			// length actually transferred
@@ -2971,7 +3292,9 @@ struct rebol_devreq {
 			REBCHR *path;			// file string (in OS local format)
 			i64  size;				// file size
 			i64  index;				// file index position
-			I64  time;				// file modification time (struct)
+			I64  modified_time;     // file modification time (struct)
+			I64  accessed_time;     // file access time (struct)
+			I64  created_time;      // file creartion time (struct)
 		} file;
 		struct {
 			u32  local_ip;			// local address used
@@ -2985,15 +3308,36 @@ struct rebol_devreq {
 			u32  buffer_cols;
 			u32  window_rows;
 			u32  window_cols;
+			i32  length;            // number of bytes already available to read (from stdio) 
 		} console;
 		struct {
 			u32 device_in;  // requested device ID (1-based; 0 = none)
 			u32 device_out;
 		} midi;
 		struct {
+			u8  type;
+			u8  channels;
+			u16 bits;
+			u32 rate;
+			u32 loop_count;
+		} audio;
+		struct {
 			u32 mode;
 			u32 value;
 		} modify;
+
+		struct {
+			REBCHR *path;			// device path string (in OS local format)
+			void *prior_attr;		// termios: retain previous settings to revert on close
+			i32 baud;				// baud rate of serial port
+			u8	data_bits;			// 5, 6, 7 or 8
+			u8	parity;				// odd, even, mark or space
+			u8	stop_bits;			// 1 or 2
+			u8	flow_control;		// hardware or software
+		} serial;
+
+		REBKEY key;
+
 	};
 };
 #pragma pack()
@@ -3012,6 +3356,7 @@ struct rebol_devreq {
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **
 **  Copyright 2012 REBOL Technologies
+**  Copyright 2012-2024 Rebol Open Source Developers
 **  REBOL is a trademark of REBOL Technologies
 **
 **  Licensed under the Apache License, Version 2.0 (the "License");
@@ -3045,7 +3390,7 @@ enum {
 	RFM_READONLY,
 	RFM_TRUNCATE,
 	RFM_RESEEK,			// file index has moved, reseek
-	RFM_NAME_MEM,		// converted name allocated in mem
+//	RFM_NAME_MEM,		// converted name allocated in mem
 	RFM_DIR = 16,
 	RFM_DRIVES,         // used only on Windows to get logical drives letters (read %/)
 	RFM_PATTERN,        // used only on Posix for reading wildcard patterns (read %*.txt)
@@ -3062,6 +3407,7 @@ enum {
 	RFE_BAD_READ,		// Read failed (general)
 	RFE_BAD_WRITE,		// Write failed (general)
 	RFE_DISK_FULL,		// No space on target volume
+	RFE_RESIZE_SERIES,  // Used on Posix to report, that the target series must be resized
 };
 
 #define MAX_FILE_NAME 1022
@@ -3125,7 +3471,7 @@ enum {
 **
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2012-2021 Rebol Open Source Contributors
+**  Copyright 2012-2025 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **  Licensed under the Apache License, Version 2.0
 **  This is a code-generated file.
@@ -3133,8 +3479,8 @@ enum {
 ************************************************************************
 **
 **  Title: Event Types
-**  Build: 3.10.3
-**  Date:  16-Jan-2023
+**  Build: 3.22.5
+**  Date:  20-Aug-2026
 **  File:  reb-evtypes.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3187,6 +3533,9 @@ enum event_types {
 	EVT_FOCUS,
 	EVT_UNFOCUS,
 	EVT_SCROLL,
+	EVT_CONTROL,
+	EVT_CONTROL_UP,
+	EVT_CHAR,
 	EVT_MAX
 };
 
@@ -3214,6 +3563,17 @@ enum event_keys {
 	EVK_F10,
 	EVK_F11,
 	EVK_F12,
+	EVK_PASTE_START,
+	EVK_PASTE_END,
+	EVK_ESCAPE,
+	EVK_SHIFT,
+	EVK_CONTROL,
+	EVK_ALT,
+	EVK_PAUSE,
+	EVK_CAPITAL,
+	EVK_BACKTAB,
+	EVK_BACKSPACE,
+	EVK_BEGIN,
 	EVK_MAX
 };
 
@@ -3224,7 +3584,7 @@ enum event_keys {
 **
 **  REBOL [R3] Language Interpreter and Run-time Environment
 **  Copyright 2012 REBOL Technologies
-**  Copyright 2012-2021 Rebol Open Source Contributors
+**  Copyright 2012-2025 Rebol Open Source Contributors
 **  REBOL is a trademark of REBOL Technologies
 **  Licensed under the Apache License, Version 2.0
 **  This is a code-generated file.
@@ -3232,8 +3592,8 @@ enum event_keys {
 ************************************************************************
 **
 **  Title: REBOL Host and Extension API
-**  Build: 3.10.3
-**  Date:  16-Jan-2023
+**  Build: 3.22.5
+**  Date:  20-Aug-2026
 **  File:  reb-lib.reb
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-reb-lib.reb)
@@ -3244,22 +3604,31 @@ enum event_keys {
 // These constants are created by the release system and can be used to check
 // for compatiblity with the reb-lib DLL (using RL_Version.)
 #define RL_VER 3
-#define RL_REV 10
-#define RL_UPD 3
+#define RL_REV 22
+#define RL_UPD 5
+
+// Bumped ONLY when an existing RL_API function's signature/semantics
+// change in a way that breaks old extension binaries calling it - i.e.
+// exactly the cases the "append new functions at the end, never modify
+// existing ones" convention (see a-lib.c header) is meant to avoid.
+// Extensions compiled against ABI N remain loadable by any host whose
+// RL_MIN_SUPPORTED_ABI <= N <= RL_ABI_VERSION.
+#define RL_ABI_VERSION        1   // bump only on a break like this one
+#define RL_MIN_SUPPORTED_ABI  1   // floor; raise only when dropping support for an old break-era
 
 // Compatiblity with the lib requires that structs are aligned using the same
 // method. This is concrete, not abstract. The macro below uses struct
 // sizes to inform the developer that something is wrong.
 #if defined(__LP64__) || defined(__LLP64__)
-#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 100 && sizeof(REBEVT) == 16)
+#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 120 && sizeof(REBEVT) == 16)
 #else
-#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 80 && sizeof(REBEVT) == 12)
+#define CHECK_STRUCT_ALIGN (sizeof(REBREQ) == 96 && sizeof(REBEVT) == 12)
 #endif
 
 // Function entry points for reb-lib (used for MACROS below):
 typedef struct rebol_ext_api {
 	void (*version)(REBYTE vers[]);
-	int (*init)(REBARGS *rargs, void *lib);
+	REBARGS* (*init)(int argc, char **argv);
 	void (*dispose)(void);
 	int (*start)(REBYTE *bin, REBINT len, REBCNT flags);
 	void (*reset)(void);
@@ -3269,7 +3638,7 @@ typedef struct rebol_ext_api {
 	int (*do_binary)(REBYTE *bin, REBINT length, REBCNT flags, REBCNT key, RXIARG *result);
 	int (*do_block)(REBSER *blk, REBCNT flags, RXIARG *result);
 	void (*do_commands)(REBSER *blk, REBCNT flags, REBCEC *context);
-	void (*print)(REBYTE *fmt, ...);
+	void (*print)(const REBYTE *fmt, ...);
 	void (*print_tos)(REBCNT flags, REBYTE *marker);
 	int (*event)(REBEVT *evt);
 	int (*update_event)(REBEVT *evt);
@@ -3277,7 +3646,7 @@ typedef struct rebol_ext_api {
 	void (*expand_series)(REBSER *series, REBCNT index, REBCNT delta);
 	void *(*make_string)(u32 size, int unicode);
 	void *(*make_image)(u32 width, u32 height);
-	void *(*make_vector)(REBINT type, REBINT sign, REBINT dims, REBINT bits, REBINT size);
+	int (*make_vector)(RXIARG *out, REBCNT type, REBINT cols, REBINT rows);
 	void (*protect_gc)(REBSER *series, u32 flags);
 	int (*get_string)(REBSER *series, u32 index, void **str, REBOOL needs_wide);
 	int (*get_utf8_string)(REBSER *series, u32 index, void **str);
@@ -3286,7 +3655,7 @@ typedef struct rebol_ext_api {
 	REBYTE *(*word_string)(u32 word);
 	u32 (*find_word)(u32 *words, u32 word);
 	REBUPT (*series)(REBSER *series, REBCNT what);
-	int (*get_char)(REBSER *series, u32 index);
+	REBU32 (*get_char)(REBSER *series, u32 index);
 	u32 (*set_char)(REBSER *series, u32 index, u32 chr);
 	int (*get_value_resolved)(REBSER *series, u32 index, RXIARG *result);
 	int (*get_value)(REBSER *series, u32 index, RXIARG *result);
@@ -3298,9 +3667,18 @@ typedef struct rebol_ext_api {
 	REBCNT (*encode_utf8)(REBYTE *dst, REBINT max, void *src, REBCNT *len, REBFLG uni, REBFLG opts);
 	REBSER* (*encode_utf8_string)(void *src, REBCNT len, REBFLG uni, REBFLG opts);
 	REBSER* (*decode_utf_string)(REBYTE *src, REBCNT len, REBINT utf, REBFLG ccr, REBFLG uni);
-	REBCNT (*register_handle)(REBYTE *name, REBCNT size, void* free_func);
+	REBCNT (*register_handle)(const REBYTE *name, REBCNT size, void* free_func);
 	REBHOB* (*make_handle_context)(REBCNT sym);
 	void (*free_handle_context)(REBHOB *hob);
+	REBCNT (*decode_utf8_char)(const REBYTE *str, REBCNT *len);
+	REBCNT (*register_handle_spec)(const REBYTE *name, REBHSP *spec);
+	REBSER* (*to_local_path)(RXIARG *file, REBFLG full, REBFLG utf8);
+	REBSER* (*to_rebol_path)(void *src, REBCNT len, REBINT uni);
+	REBSER* (*struct_spec)(REBCNT id);
+	REBCNT (*encode_utf8_char)(REBYTE *dst, REBU32 chr);
+	void* (*mem_alloc)(void *opaque, size_t size);
+	void (*mem_free)(void* opaque, void* address);
+	int (*register_compress_method)(const REBYTE* name, COMPRESS_FUNC encoder, DECOMPRESS_FUNC decoder);
 } RL_LIB;
 
 // Extension entry point functions:
@@ -3342,7 +3720,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 
 #define RL_INIT(a,b)                RL->init(a,b)
 /*
-**	int RL_Init(REBARGS *rargs, void *lib)
+**	REBARGS* RL_Init(int argc, char **argv)
 **
 **	Initialize the REBOL interpreter.
 **
@@ -3526,7 +3904,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 
 #define RL_PRINT(a,...)             RL->print(a,__VA_ARGS__)
 /*
-**	void RL_Print(REBYTE *fmt, ...)
+**	void RL_Print(const REBYTE *fmt, ...)
 **
 **	Low level print of formatted data to the console.
 **
@@ -3673,24 +4051,36 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 **		no references to them from REBOL code (C code does nothing.)
 */
 
-#define RL_MAKE_VECTOR(a,b,c,d,e)   RL->make_vector(a,b,c,d,e)
+#define RL_MAKE_VECTOR(a,b,c,d)     RL->make_vector(a,b,c,d)
 /*
-**	void *RL_Make_Vector(REBINT type, REBINT sign, REBINT dims, REBINT bits, REBINT size)
+**	int RL_Make_Vector(RXIARG *out, REBCNT type, REBINT cols, REBINT rows)
 **
-**	Allocate a new vector of the given attributes.
+**	Allocate a new vector series with the given element type and shape.
 **
 **	Returns:
-**		A pointer to a vector series or zero.
+**		1 on success, 0 on failure. On failure `out` is left untouched.
+**		Fails if `type` is not a valid element type, if `cols` is
+**		negative, if `rows` is less than 1 or too large to encode, or
+**		if the total element count cannot be allocated.
 **	Arguments:
-**		type: the datatype
-**		sign: signed or unsigned
-**		dims: number of dimensions
-**		bits: number of bits per unit (8, 16, 32, 64)
-**		size: number of values
+**		out:  RXIARG to receive the vector (series, index and info)
+**		type: element type, one of the VT* values (VTSI08..VTSF64)
+**		cols: number of columns (0 makes an empty vector)
+**		rows: number of rows; 1 for an unshaped (plain) vector
 **	Notes:
-**		Allocated with REBOL's internal memory manager.
-**		Vectors are automatically garbage collected if there are
-**		no references to them from REBOL code (C code does nothing.)
+**		Contents are zero-filled. The element type and row count are
+**		encoded together in `out->vector.info`; use the VECT_* macros
+**		rather than unpacking it by hand. The VT* numbering is part of
+**		the extension ABI and must not be reordered.
+**
+**		A vector with more than one row is length-locked, matching
+**		vectors shaped from Rebol: rows travel with the value while the
+**		buffer length is shared, so APPEND/INSERT/CLEAR on it will error.
+**
+**		Allocated with REBOL's internal memory manager and garbage
+**		collected once no REBOL value references it. Until the returned
+**		RXIARG reaches REBOL, nothing references the series -- do not
+**		call other RL_ functions that may allocate in between.
 */
 
 #define RL_PROTECT_GC(a,b)          RL->protect_gc(a,b)
@@ -3750,6 +4140,8 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 **	Notes:
 **		Strings are allowed to move in memory. Therefore, you will want
 **		to make a copy of the string if needed.
+**
+**	This function should be DEPRECATED! All strings should be UTF-8 encoded now.
 */
 
 #define RL_MAP_WORD(a)              RL->map_word(a)
@@ -3835,9 +4227,9 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 
 #define RL_GET_CHAR(a,b)            RL->get_char(a,b)
 /*
-**	int RL_Get_Char(REBSER *series, u32 index)
+**	REBU32 RL_Get_Char(REBSER *series, u32 index)
 **
-**	Get a character from byte or unicode string.
+**	Get a character from UTF8 encoded string.
 **
 **	Returns:
 **		A Unicode character point from string. If index is
@@ -3920,7 +4312,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 **	Arguments:
 **		obj  - object pointer (e.g. from RXA_OBJECT)
 **	Notes:
-**		Returns a word array similar to MAP_WORDS().
+**		Returns a word array similar to MAP_WORDS (first element is size).
 **		The array is allocated with OS_MAKE. You can OS_FREE it any time.
 */
 
@@ -4024,11 +4416,16 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 **		utf  - is 0, 8, +/-16, +/-32.
 **		ccr  - Convert LF/CRLF
 **		uni  - keep uni version even for plain ascii
+**
+**  Note:
+**		uni is not used anymore! Instead there is REBCNT err,
+**		which is used to report error position. But not used here,
+**		because this function may be used by old extensions:/
 */
 
 #define RL_REGISTER_HANDLE(a,b,c)   RL->register_handle(a,b,c)
 /*
-**	REBCNT RL_Register_Handle(REBYTE *name, REBCNT size, void* free_func)
+**	REBCNT RL_Register_Handle(const REBYTE *name, REBCNT size, void* free_func)
 **
 **	Stores handle's specification (required data size and optional free callback.
 **
@@ -4068,6 +4465,136 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 **
 */
 
+#define RL_DECODE_UTF8_CHAR(a,b)    RL->decode_utf8_char(a,b)
+/*
+**	REBCNT RL_Decode_UTF8_Char(const REBYTE *str, REBCNT *len)
+**
+**	Converts a single UTF8 code-point (to 32 bit).
+**
+**	Returns:
+**		32 bit character code
+**	Arguments:
+**		src  - UTF8 encoded data
+**		len  - number of source bytes consumed.
+*/
+
+#define RL_REGISTER_HANDLE_SPEC(a,b) RL->register_handle_spec(a,b)
+/*
+**	REBCNT RL_Register_Handle_Spec(const REBYTE *name, REBHSP *spec)
+**
+**	Stores handle's specification (required data size and optional callbacks).
+**  It's an extended version of old RL_Register_Handle function.
+**
+**	Returns:
+**		symbol id of the word (whether found or new)
+**		or NOT_FOUND if handle with give ID is already registered.
+**	Arguments:
+**		name      - handle's name as a c-string (length is being detected)
+**		spec      - Handle's specification:
+**                  * size of needed memory to handle,
+**                  * reserved flags
+**                  * release function
+**                  * get path accessor
+**                  * set path accessor
+**
+*/
+
+#define RL_TO_LOCAL_PATH(a,b,c)     RL->to_local_path(a,b,c)
+/*
+**	REBSER* RL_To_Local_Path(RXIARG *file, REBFLG full, REBFLG utf8)
+**
+**	Convert REBOL filename to a local filename.
+**
+**	Returns:
+**		A new series with the converted path or 0 on error.
+**	Arguments:
+**		file - Rebol file as an extension argument (series + index)
+**		full - prepend current directory
+**		utf8 - convert to UTF-8 if needed
+**
+*/
+
+#define RL_TO_REBOL_PATH(a,b,c)     RL->to_rebol_path(a,b,c)
+/*
+**	REBSER* RL_To_Rebol_Path(void *src, REBCNT len, REBINT uni)
+**
+**	Convert local filename to a REBOL filename.
+**
+**	Returns:
+**		A new series with the converted path or 0 on error.
+**	Arguments:
+**		ser - series as a REBYTE or REBUNI.
+**		len - number of source bytes consumed.
+**		uni - if series is REBYTE (0) or REBUNI (1)
+**
+*/
+
+#define RL_STRUCT_SPEC(a)           RL->struct_spec(a)
+/*
+**	REBSER* RL_Struct_Spec(REBCNT id)
+**
+**	Get struct specification.
+**
+**	Returns:
+**		Returns a struct specification data.
+**	Arguments:
+**		id - unique struct id (counted as a hash of the specification)
+*/
+
+#define RL_ENCODE_UTF8_CHAR(a,b)    RL->encode_utf8_char(a,b)
+/*
+**	REBCNT RL_Encode_UTF8_Char(REBYTE *dst, REBU32 chr)
+**
+**	Converts a single char to UTF8 code-point.
+**
+**	Returns:
+**		Returns length of char stored in dst
+**	Arguments:
+**		dst  - UTF8 encoded data
+**		chr  - Unicode character.
+*/
+
+#define RL_MEM_ALLOC(a,b)           RL->mem_alloc(a,b)
+/*
+**	void* RL_Mem_Alloc(void *opaque, size_t size)
+**
+**	Allocates memory either using a memory pool or standard dynamic memory allocation.
+**	It keeps info about this memory and checks if memory use is not over policy.
+**	Such allocated memory must be freed using `RL_Mem_Free` function!
+**
+**	Returns:
+**		Pointer to the newly allocated memory
+**	Arguments:
+**		opaque  - unused
+**		size    - required memory size
+*/
+
+#define RL_MEM_FREE(a,b)            RL->mem_free(a,b)
+/*
+**	void RL_Mem_Free(void* opaque, void* address)
+**
+**	Frees memory allocated using the `RL_Mem_Alloc` function.
+**
+**	Returns:
+**		nothing
+**	Arguments:
+**		opaque  - unused
+**		address - memory address to be freed
+*/
+
+#define RL_REGISTER_COMPRESS_METHOD(a,b,c) RL->register_compress_method(a,b,c)
+/*
+**	int RL_Register_Compress_Method(const REBYTE* name, COMPRESS_FUNC encoder, DECOMPRESS_FUNC decoder)
+**
+**	Register external compression functions.
+**
+**	Returns:
+**		TRUE if succesfully registered.
+**	Arguments:
+**		name - null ternimanted name of the compression method
+**		encoder - external compress function
+*/
+
 
 
 #define RL_MAKE_BINARY(s) RL_MAKE_STRING(s, FALSE)
@@ -4075,7 +4602,7 @@ extern RL_LIB *RL;  // is passed to the RX_Init() function
 #ifndef REB_EXT // not extension lib, use direct calls to r3lib
 
 RL_API void RL_Version(REBYTE vers[]);
-RL_API int RL_Init(REBARGS *rargs, void *lib);
+RL_API REBARGS* RL_Init(int argc, char **argv);
 RL_API void RL_Dispose(void);
 RL_API int RL_Start(REBYTE *bin, REBINT len, REBCNT flags);
 RL_API void RL_Reset(void);
@@ -4085,7 +4612,7 @@ RL_API int RL_Do_String(REBYTE *text, REBCNT flags, RXIARG *result);
 RL_API int RL_Do_Binary(REBYTE *bin, REBINT length, REBCNT flags, REBCNT key, RXIARG *result);
 RL_API int RL_Do_Block(REBSER *blk, REBCNT flags, RXIARG *result);
 RL_API void RL_Do_Commands(REBSER *blk, REBCNT flags, REBCEC *context);
-RL_API void RL_Print(REBYTE *fmt, ...);
+RL_API void RL_Print(const REBYTE *fmt, ...);
 RL_API void RL_Print_TOS(REBCNT flags, REBYTE *marker);
 RL_API int RL_Event(REBEVT *evt);
 RL_API int RL_Update_Event(REBEVT *evt);
@@ -4093,7 +4620,7 @@ RL_API void *RL_Make_Block(u32 size);
 RL_API void RL_Expand_Series(REBSER *series, REBCNT index, REBCNT delta);
 RL_API void *RL_Make_String(u32 size, int unicode);
 RL_API void *RL_Make_Image(u32 width, u32 height);
-RL_API void *RL_Make_Vector(REBINT type, REBINT sign, REBINT dims, REBINT bits, REBINT size);
+RL_API int RL_Make_Vector(RXIARG *out, REBCNT type, REBINT cols, REBINT rows);
 RL_API void RL_Protect_GC(REBSER *series, u32 flags);
 RL_API int RL_Get_String(REBSER *series, u32 index, void **str, REBOOL needs_wide);
 RL_API int RL_Get_UTF8_String(REBSER *series, u32 index, void **str);
@@ -4102,7 +4629,7 @@ RL_API u32 *RL_Map_Words(REBSER *series);
 RL_API REBYTE *RL_Word_String(u32 word);
 RL_API u32 RL_Find_Word(u32 *words, u32 word);
 RL_API REBUPT RL_Series(REBSER *series, REBCNT what);
-RL_API int RL_Get_Char(REBSER *series, u32 index);
+RL_API REBU32 RL_Get_Char(REBSER *series, u32 index);
 RL_API u32 RL_Set_Char(REBSER *series, u32 index, u32 chr);
 RL_API int RL_Get_Value_Resolved(REBSER *series, u32 index, RXIARG *result);
 RL_API int RL_Get_Value(REBSER *series, u32 index, RXIARG *result);
@@ -4114,9 +4641,133 @@ RL_API int RL_Callback(RXICBI *cbi);
 RL_API REBCNT RL_Encode_UTF8(REBYTE *dst, REBINT max, void *src, REBCNT *len, REBFLG uni, REBFLG opts);
 RL_API REBSER* RL_Encode_UTF8_String(void *src, REBCNT len, REBFLG uni, REBFLG opts);
 RL_API REBSER* RL_Decode_UTF_String(REBYTE *src, REBCNT len, REBINT utf, REBFLG ccr, REBFLG uni);
-RL_API REBCNT RL_Register_Handle(REBYTE *name, REBCNT size, void* free_func);
+RL_API REBCNT RL_Register_Handle(const REBYTE *name, REBCNT size, void* free_func);
 RL_API REBHOB* RL_Make_Handle_Context(REBCNT sym);
 RL_API void RL_Free_Handle_Context(REBHOB *hob);
+RL_API REBCNT RL_Decode_UTF8_Char(const REBYTE *str, REBCNT *len);
+RL_API REBCNT RL_Register_Handle_Spec(const REBYTE *name, REBHSP *spec);
+RL_API REBSER* RL_To_Local_Path(RXIARG *file, REBFLG full, REBFLG utf8);
+RL_API REBSER* RL_To_Rebol_Path(void *src, REBCNT len, REBINT uni);
+RL_API REBSER* RL_Struct_Spec(REBCNT id);
+RL_API REBCNT RL_Encode_UTF8_Char(REBYTE *dst, REBU32 chr);
+RL_API void* RL_Mem_Alloc(void *opaque, size_t size);
+RL_API void RL_Mem_Free(void* opaque, void* address);
+RL_API int RL_Register_Compress_Method(const REBYTE* name, COMPRESS_FUNC encoder, DECOMPRESS_FUNC decoder);
 
 #endif
 
+
+// File: reb-ext-common.h
+/***********************************************************************
+**
+**  REBOL [R3] Language Interpreter and Run-time Environment
+**
+**  Copyright 2012-2026 Rebol Open Source Contributors
+**  REBOL is a trademark of REBOL Technologies
+**
+**  Licensed under the Apache License, Version 2.0 (the "License");
+**  you may not use this file except in compliance with the License.
+**  You may obtain a copy of the License at
+**
+**  http://www.apache.org/licenses/LICENSE-2.0
+**
+************************************************************************
+**
+**  Summary: Convenience macros shared by extension command sources
+**  Module:  reb-ext-common.h
+**  Author:  Oldes
+**  Notes:
+**      Deliberately includes nothing. The extension decides which
+**      header provides the API - `reb-host.h` for an extension built
+**      inside this repository (either embedded or as a library), or
+**      the amalgamated `rebol-extension.h` for one built out of tree.
+**      List both in the specification's `c-include:`, API header first.
+**
+***********************************************************************/
+
+#ifndef REB_EXT_COMMON_H
+#define REB_EXT_COMMON_H
+
+// Return type of every command function. The dispatch table requires
+// them all to share this signature; see the generated commands table.
+#define COMMAND int
+
+
+/***********************************************************************
+**  Argument access
+**
+**  `frm` is the command frame; argument numbering is 1-based and counts
+**  refinements as slots of their own, with a refinement's own arguments
+**  following it. For `foo: command [a /part len]`, `a` is 1, `/part`
+**  is 2 and `len` is 3.
+***********************************************************************/
+
+#define ARG_Double(n)         RXA_DEC64(frm,n)
+#define ARG_Float(n)          (float)RXA_DEC64(frm,n)
+#define ARG_Int32(n)          RXA_INT32(frm,n)
+#define ARG_Int64(n)          RXA_INT64(frm,n)
+#define ARG_Handle_Series(n)  RXA_HANDLE_CONTEXT(frm, n)->series
+
+// Series argument which may legitimately be none.
+#define OPT_SERIES(n)         (RXA_TYPE(frm,n) == RXT_NONE ? NULL : RXA_SERIES(frm, n))
+
+// Tests that argument `n` is a handle of the registered type `t`.
+#define FRM_IS_HANDLE(n, t)   (RXA_TYPE(frm,n) == RXT_HANDLE && RXA_HANDLE_TYPE(frm, n) == t)
+
+
+/***********************************************************************
+**  Returning
+***********************************************************************/
+
+// Returns an error described by a null terminated C string.
+//
+// NOTE: on this path args[1].series is NOT a series - the interpreter
+// reads it back as a `const REBYTE*`, measures it with LEN_BYTES and
+// copies it into a fresh Rebol string, so a static string is correct
+// and its lifetime is not an issue. The cast only silences the type.
+#define RETURN_ERROR(err) \
+	do { RXA_SERIES(frm, 1) = (REBSER*)(err); return RXR_ERROR; } while(0)
+
+#define RETURN_HANDLE(hob)                   \
+	RXA_HANDLE(frm, 1)       = hob;          \
+	RXA_HANDLE_TYPE(frm, 1)  = hob->sym;     \
+	RXA_HANDLE_FLAGS(frm, 1) = hob->flags;   \
+	RXA_TYPE(frm, 1) = RXT_HANDLE;           \
+	return RXR_VALUE
+
+
+/***********************************************************************
+**  String building
+**
+**  Appends printf-formatted text to a Rebol string series, expanding it
+**  when needed. Requires an `int len` (or REBLEN/size_t) in scope.
+***********************************************************************/
+
+#define APPEND_STRING(str, ...) \
+	len = snprintf(NULL,0,__VA_ARGS__);\
+	if (len > (int)(SERIES_REST(str)-SERIES_LEN(str))) {\
+		RL_EXPAND_SERIES(str, SERIES_TAIL(str), len);\
+		SERIES_TAIL(str) -= len;\
+	}\
+	len = snprintf( \
+		SERIES_TEXT(str)+SERIES_TAIL(str),\
+		SERIES_REST(str)-SERIES_TAIL(str),\
+		__VA_ARGS__\
+	);\
+	SERIES_TAIL(str) += len;
+
+
+/***********************************************************************
+**  Tracing (compiled out unless USE_TRACES is defined)
+***********************************************************************/
+
+#ifdef  USE_TRACES
+#include <stdio.h>
+#define debug_print(fmt, ...) do { printf(fmt, __VA_ARGS__); } while (0)
+#define trace(str) puts(str)
+#else
+#define debug_print(fmt, ...)
+#define trace(str)
+#endif
+
+#endif // REB_EXT_COMMON_H

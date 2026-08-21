@@ -2,7 +2,7 @@ Rebol [
 	title: "SQLite scheme (WIP)"
 	file:  %sqlite-scheme.reb
 	note:  {This is just an initial proof of concept}
-	version: 0.1.0
+	version: 0.1.1
 	author: "Oldes"
 	needs:   [
 		3.13.1 ;; using system/options/modules as extension location
@@ -14,7 +14,7 @@ sys/make-scheme [
 	title: "SQLite database scheme"
 	name:  'sqlite
 	spec:   make system/standard/port-spec-file []
-	sqlite: import sqlite
+	sqlite: import 'sqlite
 
 	actor: [
 		open: func [
@@ -49,17 +49,27 @@ sys/make-scheme [
 		]
 		
 		open?: func [port [port!]][
-			handle? port/state/db
+			;; port/state is none until the port is opened, so it must be
+			;; checked first - `port/state/db` alone throws on a fresh port.
+			all [
+				object? port/state
+				handle? port/state/db
+			]
 		]
 
 		close: func [port [port!] /local state][
 			unless open? port [	cause-error 'Access 'not-open port/spec/ref ]
 			state: port/state
-			sqlite/close state/db
+			;; Finalize the statements BEFORE closing the connection.
+			;; sqlite3_close() refuses to close a connection which still has
+			;; live prepared statements, and the extension discards that result
+			;; code while clearing its handle - so closing first would leak the
+			;; connection for good.
 			foreach [query stmt] state/statements [
 				sqlite/finalize stmt
 			]
 			clear state/statements
+			sqlite/close state/db
 			state/db:
 			state/query:
 			state/stmt: none
@@ -70,10 +80,11 @@ sys/make-scheme [
 		write: func[port [port!] query [string!]][
 			unless open? port [	cause-error 'Access 'not-open port/spec/ref ]
 			sqlite/exec port/state/db port/state/query: query
+			port
 		]
 
 		;; INSERT is used to prepare a statement, which is then used with other actions
-		insert: func[port [port!] query [string!] /local ps stmt][
+		insert: func[port [port!] query [string!] /local ps stmt key][
 			unless open? port [	cause-error 'Access 'not-open port/spec/ref ]
 			ps: port/state
 			ps/query: query
@@ -105,7 +116,12 @@ sys/make-scheme [
 		][
 			unless open? port [	cause-error 'Access 'not-open port/spec/ref ]
 			stmt: port/state/stmt
-			port/data: data: clear any [port/data []]
+			unless handle? stmt [
+				cause-error 'Script 'invalid-arg "No prepared statement - use INSERT with a query first"
+			]
+			;; A fresh block per port.
+			unless block? data: port/data [data: port/data: make block! 32]
+			clear data
 
 			temp: sqlite/step/rows stmt any [length 0]
 			either block? temp [
@@ -136,10 +152,12 @@ sys/make-scheme [
 			field [word!]
 			value [integer!]
 		][
-			switch field [
+			switch/default field [
 				trace-level [
 					sqlite/trace port/state/db port/state/trace-level: value
 				]
+			][
+				cause-error 'Script 'invalid-arg field
 			]
 		]
 	]

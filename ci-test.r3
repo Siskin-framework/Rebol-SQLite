@@ -8,6 +8,9 @@ print ["Running test on Rebol build:" mold to-block system/build]
 system/options/quiet: false
 system/options/log/rebol: 4
 
+;; make sure that we load a fresh extension
+try [system/modules/sqlite: none]
+
 if CI?: any [
     "true" = get-env "CI"
     "true" = get-env "GITHUB_ACTIONS"
@@ -20,8 +23,6 @@ if CI?: any [
     	get-env 'REBOL_MODULES_DIR
     	what-dir
     ]
-    ;; make sure that we load a fresh extension
-	try [system/modules/sqlite: none]
 ]
 
 sqlite: import 'sqlite
@@ -29,6 +30,58 @@ sqlite: import 'sqlite
 ? sqlite
 
 recycle/torture ; make sure that recycle issues are catched
+
+;------------------------------------------------------------------------------------------------
+;; Minimal check helpers.
+;; Most of this script only prints its results, which means CI stays green as
+;; long as nothing crashes - a command silently returning the wrong value would
+;; not be noticed. These count mismatches so the run can fail at the end.
+failures: 0
+checks:   0
+
+assert-equal: func [
+	"Compares the expected value with the actual one"
+	expected [any-type!]
+	actual   [any-type!]
+][
+	checks: checks + 1
+	;; `equal?` and `mold` both refuse unset!, so it is handled separately -
+	;; a command returning nothing where a value is expected must be reported
+	;; as a failure, not crash the check itself.
+	either all [
+		not unset? :expected
+		not unset? :actual
+		equal? :expected :actual
+	][
+		print [as-green "  ok  " mold/flat :actual]
+	][
+		failures: failures + 1
+		print [
+			as-red "FAILED"
+			"expected:" either unset? :expected ["unset!"][mold/flat :expected]
+			"but got:"  either unset? :actual   ["unset!"][mold/flat :actual]
+		]
+	]
+]
+
+assert-error: func [
+	"Evaluates the code and expects it to throw an error"
+	code [block!]
+	/local result
+][
+	checks: checks + 1
+	either error? set/any 'result try code [
+		print [as-green "  ok  " "error was raised"]
+	][
+		failures: failures + 1
+		print [
+			as-red "FAILED" "expected an error, but got:"
+			either unset? :result ["unset!"][mold/flat :result]
+		]
+	]
+]
+;------------------------------------------------------------------------------------------------
+
 
 print sqlite/info
 with sqlite [
@@ -125,7 +178,7 @@ COMMIT;}
 	exec db {SELECT typeof(a), quote(a) FROM t2;} ;-- result: integer 123
 
 
-	print-horizontal-line
+	print-hline
 	trace db 1 ;= SQLITE_TRACE_STMT
 
 
@@ -135,7 +188,7 @@ COMMIT;}
 	last-id: sqlite/last-insert-id db
 	? last-id
 
-	print-horizontal-line
+	print-hline
 	print as-yellow "Using eval command with string as a query..."
 
 	probe eval db sql: {SELECT * FROM Genres}
@@ -145,7 +198,7 @@ COMMIT;}
 	probe eval db next {XSELECT * FROM Genres}
 	probe eval db reduce [next {XSELECT * FROM Genres}]
 
-	print-horizontal-line
+	print-hline
 	print as-yellow "Using prepared statement with eval..."
 
 	stmt-genres-like!: prepare db {SELECT Name FROM Genres WHERE Name LIKE :pattern}
@@ -158,7 +211,7 @@ COMMIT;}
 	print try [eval db [stmt-genres-like! "F%"]]
 
 
-	print-horizontal-line
+	print-hline
 	print as-yellow "Using eval command with parameters in blocks..."
 	probe eval db [
 		{INSERT INTO Authors (first_name, family_name, date_of_birth, date_of_death) VALUES (?,?,?,?)}
@@ -170,7 +223,7 @@ COMMIT;}
 	]
 	probe eval db "SELECT family_name, date_of_birth FROM Authors"
 
-	print-horizontal-line
+	print-hline
 
 	print as-yellow "Testing constraint error..."
 	;; family_name cannot be NULL, so there must be an error:
@@ -182,13 +235,136 @@ COMMIT;}
 	]
 
 
-	print-horizontal-line
+	print-hline
 	print as-yellow "Getting authors one by one..."
 	stmt: prepare db "SELECT * FROM Authors"
 	while [rec: step stmt] [ probe rec ]
 	finalize stmt
 
 
+
+	;==========================================================================
+	;; Added checks
+	;==========================================================================
+	print-hline
+	print as-yellow "Round-trip of all supported parameter types..."
+	;; A column with no declared type keeps whatever type is bound to it,
+	;; so each value can be checked as it comes back.
+	exec db {DROP TABLE IF EXISTS Vals;}
+	exec db {CREATE TABLE Vals(id INTEGER PRIMARY KEY, val);}
+
+	eval db [
+		{INSERT INTO Vals (id, val) VALUES (?,?)}
+		1 42
+		2 3.14
+		3 "text"
+		4 none
+		5 #{DECAFBAD}
+		6 true
+		7 false
+	]
+
+	assert-equal 42          first eval db "SELECT val FROM Vals WHERE id = 1"
+	assert-equal 3.14        first eval db "SELECT val FROM Vals WHERE id = 2"
+	assert-equal "text"      first eval db "SELECT val FROM Vals WHERE id = 3"
+	assert-equal none        first eval db "SELECT val FROM Vals WHERE id = 4"
+	assert-equal #{DECAFBAD} first eval db "SELECT val FROM Vals WHERE id = 5"
+	;; logic! is bound as an integer, so it reads back as 1 / 0
+	assert-equal 1           first eval db "SELECT val FROM Vals WHERE id = 6"
+	assert-equal 0           first eval db "SELECT val FROM Vals WHERE id = 7"
+
+	;; the multi-row form must consume the parameters in pairs
+	assert-equal 7 first eval db "SELECT count(*) FROM Vals"
+
+	print as-yellow "^/Any-string types are bound as their text content..."
+	eval db [
+		{INSERT INTO Vals (id, val) VALUES (?,?)}
+		10 %some/file.txt
+		11 http://example.com
+		12 user@example.com
+		13 <a-tag>
+	]
+	assert-equal "some/file.txt"      first eval db "SELECT val FROM Vals WHERE id = 10"
+	assert-equal "http://example.com" first eval db "SELECT val FROM Vals WHERE id = 11"
+	assert-equal "user@example.com"   first eval db "SELECT val FROM Vals WHERE id = 12"
+	assert-equal "a-tag"              first eval db "SELECT val FROM Vals WHERE id = 13"
+
+	print as-yellow "^/Unicode round-trip (wide strings must be converted to UTF-8)..."
+	unicode-text: "Příliš žluťoučký kůň úpěl ďábelské ódy"
+	eval db [{INSERT INTO Vals (id, val) VALUES (?,?)} 20 unicode-text]
+	assert-equal unicode-text first eval db "SELECT val FROM Vals WHERE id = 20"
+	;; and the length must survive as characters, not as UTF-8 bytes
+	assert-equal length? unicode-text first eval db "SELECT length(val) FROM Vals WHERE id = 20"
+
+	print as-yellow "^/A parameter which is not at its head position..."
+	skipped: skip "XXhello" 2
+	eval db [{INSERT INTO Vals (id, val) VALUES (?,?)} 21 skipped]
+	assert-equal "hello" first eval db "SELECT val FROM Vals WHERE id = 21"
+
+	print-hline
+	print as-yellow "COLUMNS command..."
+	stmt: prepare db "SELECT Id, Name, Price FROM Cars"
+	assert-equal ["Id" "Name" "Price"] columns stmt
+	finalize stmt
+	;; a statement without a result set has no columns
+	stmt: prepare db {INSERT INTO Vals (val) VALUES (?)}
+	assert-equal none columns stmt
+	finalize stmt
+
+	print-hline
+	print as-yellow "STEP row counts..."
+	total-cars: first eval db "SELECT count(*) FROM Cars"
+	stmt: prepare db "SELECT Name FROM Cars ORDER BY Name"
+	;; without the /rows refinement a single row is returned...
+	assert-equal 1 length? step stmt
+	;; ...with it, at most the requested number of rows...
+	assert-equal 3 length? step/rows stmt 3
+	;; ...and a count below 1 means "all the remaining rows"
+	assert-equal (total-cars - 4) length? step/rows stmt 0
+	;; nothing is left now
+	assert-equal none step stmt
+	finalize stmt
+
+	print-hline
+	print as-yellow "Errors must be thrown, not silently ignored..."
+	assert-error [exec db "INVALID"]
+	assert-error [prepare db "SELECT * FROM NoSuchTable"]
+	;; family_name has a NOT NULL constraint
+	assert-error [
+		eval db [
+			{INSERT INTO Authors (first_name, family_name) VALUES (?,?)}
+			"Jim" none
+		]
+	]
+
+	print-hline
+	print as-yellow "Binding a vector! as a compact BLOB..."
+	;; This is the only place where the vector branch of the parameter binding
+	;; is used - an f32 vector of 8 items must arrive as exactly 32 bytes.
+	either find eval db {PRAGMA module_list;} "vec0" [
+		exec db {DROP TABLE IF EXISTS vec_test;}
+		exec db {CREATE VIRTUAL TABLE vec_test USING vec0(embedding float[8]);}
+		;; 8 x 32bit float is exactly the 32 bytes which vec0 expects here
+		embedding: try [make vector! [decimal! 32 [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8]]]
+		either vector? :embedding [
+			eval db [{INSERT INTO vec_test(rowid, embedding) VALUES (?,?)} 1 embedding]
+			assert-equal 32 length? first eval db {SELECT embedding FROM vec_test WHERE rowid = 1}
+			;; a vector of a wrong size must be refused by the vec0 module
+			;; (built up front - values inside the block are only word-resolved,
+			;; an expression like `make vector! [...]` would not be evaluated there)
+			wrong-embedding: make vector! [decimal! 32 [1.0 2.0]]
+			assert-error [
+				eval db [
+					{INSERT INTO vec_test(rowid, embedding) VALUES (?,?)}
+					2 wrong-embedding
+				]
+			]
+		][
+			print as-red "  could not construct an f32 vector! - check the constructor syntax"
+		]
+	][
+		print as-yellow "  sqlite-vec is not available, skipping"
+	]
 
 	print as-green "^/Shutting down.."
 	print info
@@ -202,9 +378,37 @@ COMMIT;}
 
 
 ;------------------------------------------------------------------------------------------------
-print-horizontal-line
+print-hline
+print as-yellow "Handles must be released by the garbage collector"
+;; Neither the connection nor the statement below is closed explicitly, so the
+;; handle release callbacks are the only thing which can free them. With
+;; `recycle/torture` still active, a mistake in those callbacks shows up here.
+try [delete %test-gc.db]
+gc-db:   sqlite/open %test-gc.db
+sqlite/exec gc-db {CREATE TABLE IF NOT EXISTS gc(a);}
+gc-stmt: sqlite/prepare gc-db {SELECT 1}
+assert-equal [1] sqlite/step gc-stmt
+;; drop every reference and let the recycler do the rest
+gc-db: gc-stmt: none
+recycle
+print as-green "  ok   (no crash while releasing the handles)"
+
+;; Removing the file is a secondary check: on Windows an open database cannot
+;; be deleted, so a leaked connection is caught there. On POSIX an open file can
+;; be unlinked, so there the value of this section is the crash-free recycle above.
+checks: checks + 1
+try [delete %test-gc.db]
+either exists? %test-gc.db [
+	failures: failures + 1
+	print as-red "FAILED  the database file could not be removed - still open?"
+][
+	print as-green "  ok   the database file was released and removed"
+]
+
+;------------------------------------------------------------------------------------------------
+print-hline
 print as-yellow "SQLITE SCHEME TESTS"
-print-horizontal-line
+print-hline
 
 import %sqlite-scheme.reb
 
@@ -228,7 +432,7 @@ if exists? %chinook.db [
 ;open sqlite:new.db              ;; would throw an error, if the file ./new.db does not exists
 ;open sqlite:/home/oldes/new.db  ;; used full path to the DB file
 
-print-horizontal-line
+print-hline
 prin  as-yellow "Testing an error message, when trying to open a database using not existing dir."
 print try [open/new sqlite:not-exists/dir]
 
@@ -294,11 +498,11 @@ INSERT INTO "Contacts" VALUES('Oldes@corporate.com','Oldes', 'Huhuman');
 COMMIT;
 }
 
-print-horizontal-line
+print-hline
 prin as-yellow "Testing an error message of the invalid query."
 print try [insert db "INVALID_QUERY"]
 
-print-horizontal-line
+print-hline
 
 insert db "SELECT * FROM Cars"  ;; Prepares a statement
 print as-yellow "Resolving 10 rows one by one..."
@@ -308,23 +512,23 @@ probe read/part db 5
 print as-yellow "Resolving the rest of rows..."
 probe read db
 
-print-horizontal-line
+print-hline
 print as-yellow "Resolving 4 random hexadecimal blobs"
 insert db "SELECT hex(randomblob(16)), hex(randomblob(16)), hex(randomblob(16)), hex(randomblob(16))"
 probe read db
 
-print-horizontal-line
+print-hline
 print as-yellow "Resolving all data using PICK action"
 probe pick db "SELECT * FROM Contacts"
 
 
-print-horizontal-line
+print-hline
 print as-yellow "Resolving available extension modules"
 insert db {PRAGMA module_list;}
 probe extensions: read db
 
 if find extensions "vec0" [
-	print-horizontal-line
+	print-hline
 	print as-yellow "Test sqlite-vec extension"
 	write db {
 	DROP TABLE IF EXISTS vec_examples;
@@ -351,8 +555,19 @@ if find extensions "vec0" [
 	probe read db
 ]
 
-print-horizontal-line
+close db
+
+print-hline
 print as-yellow "DONE"
+
+print-hline
+either failures > 0 [
+	print as-red ajoin ["RESULT: " failures " of " checks " check(s) FAILED!"]
+	quit/return 1
+][
+	print as-green ajoin ["RESULT: all " checks " checks passed."]
+]
+quit/return 0
 
 ;quit
 
