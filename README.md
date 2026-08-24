@@ -244,6 +244,111 @@ Tests are run with:
 rebol ci-test.r3
 ```
 
+`ci-test.r3` only configures the module location, imports the extension and
+checks that a database can be opened, then hands over to `test.r3`, which holds
+the suite itself. `test.r3` can also be run on its own against an already
+installed extension. It exits with `1` if any assertion failed.
+
 ## License
 
 Distributed under the [MIT license](LICENSE).
+
+## Extension commands:
+
+
+#### `info`
+Returns info about SQLite extension library
+* `/of`
+* `handle` `[handle!]` SQLite Extension handle
+
+#### `open` `:file`
+Opens a new database connection
+* `file` `[file!]`
+
+#### `exec` `:db` `:sql`
+Runs zero or more semicolon-separate SQL statements
+* `db` `[handle!]` sqlite-db
+* `sql` `[string!]` statements
+
+#### `eval` `:db` `:query`
+Evaluates SQL statement with optional paramaters
+* `db` `[handle!]` sqlite-db
+* `query` `[string! block! handle!]` single statement, a single statement with parameters or a prepared statement
+
+#### `last-insert-id` `:db`
+Returns the rowid of the most recent successful INSERT into a rowid table or virtual table on database connection
+* `db` `[handle!]` sqlite-db
+
+#### `finalize` `:stmt`
+Deletes prepared statement
+* `stmt` `[handle!]` sqlite-stmt
+
+#### `trace` `:db` `:mask`
+Traces debug output
+* `db` `[handle!]` sqlite-db
+* `mask` `[integer!]`
+
+#### `prepare` `:db` `:sql`
+Prepares SQL statement
+* `db` `[handle!]` sqlite-db
+* `sql` `[string!]` statement
+
+#### `reset` `:stmt`
+Resets prepared statement
+* `stmt` `[handle!]` sqlite-stmt
+
+#### `step` `:stmt`
+Executes prepared statement
+* `stmt` `[handle!]` sqlite-stmt
+* `/rows` Multiple times if there is enough rows in the result
+* `count` `[integer!]`
+* `/with`
+* `parameters` `[block!]`
+
+#### `close` `:db`
+Closes a database connection
+* `db` `[handle!]` sqlite-db
+
+#### `columns` `:stmt`
+Returns column names associated with the statement
+* `stmt` `[handle!]` sqlite-stmt
+
+#### `initialize`
+Initializes the SQLite library
+
+#### `shutdown`
+Deallocate any resources that were allocated
+
+
+## Used handles and its getters / setters
+
+#### __SQLITE-DB__ - SQLite database connection
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/filename         file!               none                          "Name of the file the database was opened from"
+/readonly         logic!              none                          "Whether the main database is read-only"
+/autocommit       logic!              none                          "Whether the connection is in the autocommit mode"
+/last-insert-id   integer!            none                          "Rowid of the most recent successful insert"
+/changes          integer!            none                          "Number of rows modified by the most recent statement"
+/total-changes    integer!            none                          "Number of rows modified since the connection was opened"
+/error-code       integer!            none                          "Result code of the most recent failed API call"
+/error            string!             none                          "Message of the most recent failed API call"
+/trace            integer!            integer!                      "Trace mask (1 = statements, 2 = profiles, 3 = both)"
+/busy-timeout     none                integer!                      "Milliseconds to wait for a locked table (write only)"
+```
+
+#### __SQLITE-STMT__ - SQLite prepared statement
+
+```rebol
+;Refinement       Gets                Sets                          Description
+/sql              string!             none                          "The SQL text the statement was prepared from"
+/expanded-sql     string!             none                          "The SQL text with the bound parameters expanded"
+/columns          block!              none                          "Column names of the result set"
+/column-count     integer!            none                          "Number of columns in the result set"
+/data-count       integer!            none                          "Number of columns in the current result row"
+/parameters       integer!            none                          "Number of bindable parameters"
+/readonly         logic!              none                          "Whether the statement only reads from the database"
+/busy             logic!              none                          "Whether the statement is in the middle of its execution"
+/result-code      integer!            none                          "Result code of the last step"
+```

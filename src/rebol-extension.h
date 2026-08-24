@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////
 // File: rebol-extension.h
 // Home: https://github.com/Oldes/Rebol3/
-// Date: 21-Aug-2026/9:45:01
+// Date: 24-Aug-2026/11:18:27
 // Note: This file is amalgamated from these sources:
 //
 //       reb-c.h
@@ -902,7 +902,7 @@ enum encoding_opts {
 **
 **  Title: Extension Types (Isolators)
 **  Build: 3.22.5
-**  Date:  20-Aug-2026
+**  Date:  24-Aug-2026
 **  File:  ext-types.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -1457,6 +1457,7 @@ enum {
 #define	SERIES_FLAGS(s)	 ((s)->flags)
 #define	SERIES_WIDE(s)	 (((s)->sizes) & 0xff)
 #define SERIES_DATA(s)   ((s)->data)
+#define SERIES_TEXT(s)   ((char*)SERIES_DATA(s))
 #define	SERIES_SKIP(s,i) (SERIES_DATA(s) + (SERIES_WIDE(s) * (i)))
 
 #define END_FLAG 0x80000000  // Indicates end of block as an index (from DO_NEXT)
@@ -3480,7 +3481,7 @@ enum {
 **
 **  Title: Event Types
 **  Build: 3.22.5
-**  Date:  20-Aug-2026
+**  Date:  24-Aug-2026
 **  File:  reb-evtypes.h
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-boot.reb)
@@ -3593,7 +3594,7 @@ enum event_keys {
 **
 **  Title: REBOL Host and Extension API
 **  Build: 3.22.5
-**  Date:  20-Aug-2026
+**  Date:  24-Aug-2026
 **  File:  reb-lib.reb
 **
 **  AUTO-GENERATED FILE - Do not modify. (From: make-reb-lib.reb)

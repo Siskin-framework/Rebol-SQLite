@@ -67,6 +67,9 @@ r3-extension: [
 	]
 	define: REB_EXT
 	do %make-extension.r3 "${NEST_ROOT}/src/sqlite.reb"
+
+	;- keep the README's reference sections in sync with the same spec ----
+	do %make-readme.r3 [%src/sqlite.reb]
 ]
 
 eggs: [
