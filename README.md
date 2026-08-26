@@ -5,7 +5,7 @@
 
 # Rebol/SQLite
 
-[SQLite](https://www.sqlite.org/) extension for [Rebol3](https://github.com/Siskin-framework/Rebol),
+[SQLite](https://www.sqlite.org/) extension for [Rebol3](https://github.com/Oldes/Rebol3) (version 3.22.5 and higher),
 with the [sqlite-vec](https://github.com/asg017/sqlite-vec) vector search extension built in.
 
 > [!WARNING]

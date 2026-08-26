@@ -8,6 +8,7 @@ system/options/log/rebol: 4
 
 ;; make sure that we load a fresh extension
 try [system/modules/sqlite: none]
+try [unset in system/schemes 'sqlite]
 
 if CI?: any [
     "true" = get-env "CI"

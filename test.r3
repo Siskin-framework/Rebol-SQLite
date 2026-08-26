@@ -143,7 +143,7 @@ foreach name [
 ;; The scheme is merged into the module through `reb-include:`. A build
 ;; without it is still valid, so this only decides whether the port scheme
 ;; group runs at all - it is not an assertion.
-has-scheme?: did find system/schemes 'sqlite
+has-scheme?: object? select system/schemes 'sqlite
 print ["Port scheme registered:" has-scheme?]
 
 ;;=============================================================================
