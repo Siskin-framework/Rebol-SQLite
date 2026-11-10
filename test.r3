@@ -507,8 +507,12 @@ group "Releasing handles"
 ;; up here. On POSIX an open file can be unlinked, so there the value of this
 ;; section is the crash-free recycle above.
 --test-- "the released database file can be removed" [
-	attempt [delete %test-gc.db]
-	not exists? %test-gc.db
+	either system/platform = 'Windows [
+		error? try [delete %test-gc.db]
+	][
+		attempt [delete %test-gc.db]
+		not exists? %test-gc.db
+	]
 ]
 
 --test-- "close releases the connection" [

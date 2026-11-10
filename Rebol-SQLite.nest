@@ -4,10 +4,9 @@
 ;-===="="=======================================================================
 
 ;github: @sqlite-vec
-github: asg017/sqlite-vec
 
 compiler: clang
-version: 3.53.4
+version: 3.54.1
 
 ;define: USE_TRACES
 
@@ -66,10 +65,12 @@ r3-extension: [
 		;libraries: [%pthread]
 	]
 	define: REB_EXT
-	do %make-extension.r3 "${NEST_ROOT}/src/sqlite.reb"
 
-	;- keep the README's reference sections in sync with the same spec ----
-	do %make-readme.r3 [%src/sqlite.reb]
+	;- generate the extension header and command table ---------------
+	;; Produces %src/gen-sqlite.h and %src/gen-sqlite.c from the
+	;; declarative specification. The args must be a block - the generator
+	;; reads the spec path as `first system/script/args`.
+	do %make-extension.r3 [%src/sqlite.reb --readme]
 ]
 
 eggs: [
