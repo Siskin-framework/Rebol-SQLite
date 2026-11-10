@@ -1,7 +1,7 @@
 REBOL [
 	Title:   "Rebol SQLite Extension"
 	Name:    sqlite
-	Version: 3.53.4.3
+	Version: 3.54.1.0
 	Needs:   3.22.5
 	Author:  @Oldes
 	License: MIT
